@@ -19,16 +19,15 @@ References:
     - https://setuptools.readthedocs.io/en/latest/userguide/entry_point.html
     - https://pip.pypa.io/en/stable/reference/pip_install
 """
-
 import argparse
 import logging
 import sys
 
 from optimal_mapping import __version__
 
-__author__ = "Zhilei Xu"
-__copyright__ = "Zhilei Xu"
-__license__ = "MIT"
+__author__ = 'Zhilei Xu'
+__copyright__ = 'Zhilei Xu'
+__license__ = 'MIT'
 
 _logger = logging.getLogger(__name__)
 
@@ -41,6 +40,7 @@ _logger = logging.getLogger(__name__)
 
 def print_test():
     print('Just another test.')
+
 
 def fib(n):
     """Fibonacci example function
@@ -74,27 +74,27 @@ def parse_args(args):
     Returns:
       :obj:`argparse.Namespace`: command line parameters namespace
     """
-    parser = argparse.ArgumentParser(description="Just a Fibonacci demonstration")
+    parser = argparse.ArgumentParser(description='Just a Fibonacci demonstration')
     parser.add_argument(
-        "--version",
-        action="version",
-        version="optimal_mapping {ver}".format(ver=__version__),
+        '--version',
+        action='version',
+        version=f'optimal_mapping {__version__}',
     )
-    parser.add_argument(dest="n", help="n-th Fibonacci number", type=int, metavar="INT")
+    parser.add_argument(dest='n', help='n-th Fibonacci number', type=int, metavar='INT')
     parser.add_argument(
-        "-v",
-        "--verbose",
-        dest="loglevel",
-        help="set loglevel to INFO",
-        action="store_const",
+        '-v',
+        '--verbose',
+        dest='loglevel',
+        help='set loglevel to INFO',
+        action='store_const',
         const=logging.INFO,
     )
     parser.add_argument(
-        "-vv",
-        "--very-verbose",
-        dest="loglevel",
-        help="set loglevel to DEBUG",
-        action="store_const",
+        '-vv',
+        '--very-verbose',
+        dest='loglevel',
+        help='set loglevel to DEBUG',
+        action='store_const',
         const=logging.DEBUG,
     )
     return parser.parse_args(args)
@@ -106,9 +106,9 @@ def setup_logging(loglevel):
     Args:
       loglevel (int): minimum loglevel for emitting messages
     """
-    logformat = "[%(asctime)s] %(levelname)s:%(name)s:%(message)s"
+    logformat = '[%(asctime)s] %(levelname)s:%(name)s:%(message)s'
     logging.basicConfig(
-        level=loglevel, stream=sys.stdout, format=logformat, datefmt="%Y-%m-%d %H:%M:%S"
+        level=loglevel, stream=sys.stdout, format=logformat, datefmt='%Y-%m-%d %H:%M:%S',
     )
 
 
@@ -124,9 +124,9 @@ def main(args):
     """
     args = parse_args(args)
     setup_logging(args.loglevel)
-    _logger.debug("Starting crazy calculations...")
-    print("The {}-th Fibonacci number is {}".format(args.n, fib(args.n)))
-    _logger.info("Script ends here")
+    _logger.debug('Starting crazy calculations...')
+    print('The {}-th Fibonacci number is {}'.format(args.n, fib(args.n)))
+    _logger.info('Script ends here')
 
 
 def run():
@@ -137,7 +137,7 @@ def run():
     main(sys.argv[1:])
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     # ^  This is a guard statement that will prevent the following code from
     #    being executed in the case someone imports this file instead of
     #    executing it as a script.

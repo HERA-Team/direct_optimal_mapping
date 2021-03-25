@@ -39,6 +39,8 @@ _logger = logging.getLogger(__name__)
 # `from optimal_mapping.skeleton import fib`,
 # when using this Python module as a library.
 
+def print_test():
+    print('Just another test.')
 
 def fib(n):
     """Fibonacci example function

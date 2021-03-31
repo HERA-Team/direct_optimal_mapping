@@ -1,8 +1,3 @@
-===============
-optimal_mapping
-===============
-
-
 This package provides a tool to map radio interferometric astronomical data
 following the optimal mapping philosophy. This package is specifically developed
 for the HERA project.

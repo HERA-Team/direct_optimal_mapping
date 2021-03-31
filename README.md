@@ -5,7 +5,8 @@ for the HERA project.
 Installation
 ===========
 
-```pip install .
+```
+pip install .
 ```
 
 Description

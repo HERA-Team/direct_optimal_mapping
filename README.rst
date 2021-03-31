@@ -9,6 +9,7 @@ for the HERA project.
 
 Installation
 ===========
+
 ```pip install .
 ```
 
@@ -16,6 +17,7 @@ Description
 ===========
 
 ## Short Introduction
+
 The optimal_mapping.py file contains the OptMapping class. 
 
 To use the class, one should first import the python script file:

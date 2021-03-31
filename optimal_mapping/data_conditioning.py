@@ -13,7 +13,7 @@ class DataConditioning:
     def __init__(self, uv, ifreq, ipol):
         '''Setting up initial parameters for the object
 
-        Input
+        Args
         ------
         uv: UVData Object
 
@@ -33,7 +33,7 @@ class DataConditioning:
         '''Remove flagged data visibilities, keeping the original
         data object untouched
 
-        Input
+        Args
         ------
         uv: UVData object
             input UVData object to be flag-removed
@@ -58,7 +58,7 @@ class DataConditioning:
         '''Averaging within each redundant group, keeping the original
         data object untouched
 
-        Input
+        Args
         ------
         uv: UVData object
             input UVData object to be flag-removed
@@ -85,7 +85,7 @@ class DataConditioning:
     def redundant_grouping(self, tol=1.0):
         '''Grouping the baselines within the UVData
 
-        Input
+        Args
         ------
         tol: float
             tolerace of the redundant baseline grouping (in meters)

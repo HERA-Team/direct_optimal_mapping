@@ -23,7 +23,7 @@ class OptMapping:
     def __init__(self, uv, nside, epoch='J2000'):
         '''Init function for basic setup
 
-        Input
+        Args:
         ------
         uv: pyuvdata object
             UVData data in the pyuvdata format, data_array only has the blt dimension
@@ -85,7 +85,7 @@ class OptMapping:
         '''Convert ra/dec to az/alt at the given obs_time and assuming the site
         as HERA
 
-        Input:
+        Args
         ------
         ra: 1d array (float)
             array of the ra coordintes (in radians)
@@ -112,7 +112,7 @@ class OptMapping:
         healpix from the entire sky to the regions within a
         certain radius away from the phase center
 
-        Input:
+        Args
         ------
         radius_deg: float (in degrees)
             radius to be included in the K_psf matrix
@@ -149,7 +149,7 @@ class OptMapping:
         '''Beam interpolation model set up with RectSphereBivariantSpline
         beam power is used as sqrt(col4**2 + col6**2)
 
-        Input:
+        Args
         ------
         beam_model: str ('vivaldi' or 'dipole')
             beam model used for interpolation
@@ -199,7 +199,7 @@ class OptMapping:
     def set_a_mat(self):
         '''Calculating A matrix, covering the range defined by K_psf
 
-        Input:
+        Args
         ------
         None
 
@@ -254,7 +254,7 @@ class OptMapping:
         '''Calculating A matrix, covering the range defined by K_psf
         + the point sources given in the ps_radec arguement
 
-        Input:
+        Args
         ------
         ps_radec: 2d array
             with shape as n_source X 2, it saves the ra,dec of all
@@ -327,7 +327,7 @@ class OptMapping:
         '''Calculating P matrix, covering the range defined by K_psf,
         projectin to the range defined by K_facet
 
-        Input:
+        Args
         ------
         None
 
@@ -369,7 +369,7 @@ class OptMapping:
         covering the range defined by K_psf + point source pixels,
         projectin to the range defined by K_facet
 
-        Input:
+        Args
         ------
         None
 
@@ -408,7 +408,7 @@ class OptMapping:
     def set_k_facet(self, radius_deg, calc_k=False):
         '''Calculating the K_facet matrix
 
-        Input:
+        Args
         ------
         radius: float (in degrees)
             radius to be included in the K_facet matrix

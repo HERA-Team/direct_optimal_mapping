@@ -75,6 +75,8 @@ Please note that hmap only covers the area within the PSF.
 This only gives a brief introdution, more details can be explored in the data_conditioning.py 
 and optimal_mapping.py files with the help of docstrings and comments.
 
+## A-matrix with Point-source Pixels (upcoming...)
+
 ## uv Object
 The uv object can be read in via:
 
@@ -92,8 +94,6 @@ An example is shown here:
 uv.select(ant_str='cross')
 uv.reorder_blts('baseline')
 ```
-
-.. _pyscaffold-notes:
 
 Note
 ====

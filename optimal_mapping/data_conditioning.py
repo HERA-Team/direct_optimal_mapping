@@ -1,5 +1,6 @@
 import numpy as np
 from pyuvdata import UVData
+import copy
 
 class DataConditioning:
     '''This class takes in the pyuvdata UVData object and perform
@@ -9,44 +10,79 @@ class DataConditioning:
     selection, etc.
     '''
 
-    def __init__(self, uv, ifreq, ipol):
+    def __init__(self, uv, ifreq, ipol, uv_noise=None):
         '''Setting up initial parameters for the object
         
-        Input
+        Args
         ------
-        uv: UVData Object
-
+        uv: pyuvdata object
+            main pyuvdata object
         ifreq: integer [0 - 1023]
             select the frequency band
         ipol: integer [-5 - -8]
-            select the linear polarization (-5:-8 (XX, YY, XY, YX))           
-
+            select the linear polarization (-5:-8 (XX, YY, XY, YX))
+        uv_noise: pyuvdata object
+            noise information is stored in the pyuvdata format (std. dev of the full
+            complex visibility), .nsample_array in the uv object is assigned with the 
+            noise info in the .data_array attribute
+            if uv_noise is None, the .nsample_array is assigned to be one as uniform
+            noise across visibilities
         '''
-        uv_1d = uv.select(freq_chans=ifreq, polarizations=ipol, 
-                          inplace=False, keep_all_metadata=False)
+        self.ifreq = ifreq
+        self.ipol = ipol
+        uv_cp = copy.deepcopy(uv)
+        if uv_noise is None:
+            uv_cp.nsample_array = np.ones(uv_cp.nsample_array.shape)
+        else:
+            uv_cp.nsample_array = np.real(uv_noise.data_array)
+        uv_1d = uv_cp.select(freq_chans=ifreq, polarizations=ipol, 
+                             inplace=False, keep_all_metadata=False)
         self.uv_1d = uv_1d
+        
+    def add_noise(self, uv_noise):
+        '''Extract the noise value from the noise file and report
+        them at given frequqncy channel and polarization, the noise
+        value is added into the uv_1d object under an attribute 
+        .noise_array
+        
+        Args
+        ------
+        uv_noise: UVData Object
+        
+        '''
+        uv_noise_1d = uv_noise.select(freq_chans=self.ifreq, 
+                                      polarizations=self.ipol, 
+                                      inplace=False, 
+                                      keep_all_metadata=False)
+        self.uv_1d.noise_array = uv_noise_1d.data_array.astype(np.float32)
+        
 
-    def rm_flag(self, uv):
+    def rm_flag(self, uv=None):
         '''Remove flagged data visibilities, keeping the original
         data object untouched
         
-        Input
+        Args
         ------
         uv: UVData object
             input UVData object to be flag-removed
             The UVData.data_array must only have one dimension along blt
-            
+            If None, self.uv_1d is used by default
         Output
         ------
         uv_flag_rm: UVData object
             flag-removed UVData object
         '''
+        if uv is None:
+            uv = self.uv_1d
         if all(uv.flag_array):
             print('All data are flagged. Returning None.')
             return None
         idx_t = np.where(uv.flag_array==False)[0]
         uv_flag_rm = uv.select(blt_inds=idx_t, 
                                inplace=False, keep_all_metadata=False)
+        if hasattr(self.uv_1d, 'noise_array'):
+            uv_flag_rm.noise_array = self.uv_1d.noise_array[idx_t]
+        
         return uv_flag_rm
         
     def redundant_avg(self, uv, tol=1.0):

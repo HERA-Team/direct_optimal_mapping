@@ -374,14 +374,15 @@ class OptMapping:
         p_mat_ps = np.matrix(np.real(p_mat_ps))
         #normalizatoin factor set up
         k_facet_transpose = np.matrix(k_facet.T)
-        p_mat_facet = np.matmul(p_mat_ps[:, :len(self.idx_psf_in)], k_facet_transpose) 
-        p_diag_ps = np.diag(p_mat_facet)
+        p_square = np.matmul(p_mat_ps[:, :len(self.idx_psf_in)], k_facet_transpose) 
+        p_diag_ps = np.diag(p_square)
         del inv_noise_mat, k_facet, k_facet_transpose, p_mat1, p_mat2
         
         #attribute assignment
         self.p_mat_ps = p_mat_ps
         self.p_diag_ps = p_diag_ps
-        return p_mat_ps, p_diag_ps, p_mat_facet
+        self.p_square_ps = p_square
+        return p_mat_ps, p_diag_ps
         
     
     def set_k_facet(self, radius_deg, calc_k=False):

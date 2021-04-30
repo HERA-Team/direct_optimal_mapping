@@ -6,7 +6,7 @@ from astropy.time import Time
 from astropy import constants
 from astropy.coordinates import EarthLocation
 from astropy import units as u
-from astropy.coordinates import AltAz, SkyCoord, FK5
+from astropy.coordinates import AltAz, SkyCoord, TETE
 import copy
 import healpy as hp
 from pyuvdata import UVData
@@ -53,7 +53,7 @@ class OptMapping:
         if epoch == 'J2000':
             self.equinox = 'J2000'
         elif epoch == 'Current':
-            self.equinox = Time(np.mean(self.times), format='jd')
+            pass
         else:
             print('Please provide a proper epoch: either J2000 or Current')
         print('RA/DEC in the epoch of %s.'%self.equinox)
@@ -96,7 +96,10 @@ class OptMapping:
         '''
         obs_time = Time(time, format='jd')
         aa = AltAz(location=self.hera_site, obstime=obs_time)
-        c = SkyCoord(ra=ra, dec=dec, unit='radian', frame=FK5, equinox=self.equinox)
+        if self.equinox == 'J2000':
+            c = SkyCoord(ra=ra, dec=dec, unit='radian', frame=TETE(obstime=self.equinox))
+        elif self.equinox == 'Current':
+            c = SkyCoord(ra=ra, dec=dec, unit='radian', frame=TETE(obstime=obs_time))
         az = np.radians(c.transform_to(aa).az.value)
         alt = np.radians(c.transform_to(aa).alt.value)
         
@@ -293,12 +296,14 @@ class OptMapping:
         self.a_mat_ps = a_mat
         return a_mat
     
-    def set_noise_mat(self):
-        '''Calculating the noise matrix
+    def set_inv_noise_mat(self):
+        '''Calculating the inverse noise matrix
         '''
-        noise_mat = np.diag(np.ones(self.a_mat.shape[0]))
+        inv_noise_mat = np.diag(np.squeeze(self.uv.nsample_array)**(-2))
+        self.inv_noise_mat = inv_noise_mat
+        self.norm_factor = np.sum(np.diag(inv_noise_mat))
 
-        return noise_mat
+        return inv_noise_mat
     
     def set_p_mat(self, facet_radius_deg=7):
         '''Calculating P matrix, covering the range defined by K_psf,
@@ -323,23 +328,22 @@ class OptMapping:
             normalization array for the map within the facet
         '''
         #p_matrix set up
-        noise_mat = self.set_noise_mat()
+        inv_noise_mat = self.set_inv_noise_mat()
         k_facet = np.matrix(self.set_k_facet(radius_deg=facet_radius_deg, calc_k=True))
         p_mat1 = np.matmul(k_facet, self.a_mat.H)
-        #p_mat2 = np.matmul(noise_mat, self.a_mat)
-        p_mat2 = self.a_mat
+        p_mat2 = np.matmul(inv_noise_mat, self.a_mat)
         p_mat = np.matmul(p_mat1, p_mat2)
         p_mat = np.matrix(np.real(p_mat))
         #normalizatoin factor set up
         k_facet_transpose = np.matrix(k_facet.T)
         p_mat_facet = np.matmul(p_mat, k_facet_transpose) 
         p_diag = np.diag(p_mat_facet)
-        del noise_mat, k_facet, p_mat1, p_mat2, p_mat_facet
+        del inv_noise_mat, k_facet, p_mat1, p_mat2
         
         #attribute assignment
         self.p_mat = p_mat
         self.p_diag = p_diag
-        return p_mat, p_diag
+        return p_mat, p_diag, p_mat_facet
     
     def set_p_mat_ps(self, facet_radius_deg=7):
         '''Calculating P matrix with stand-alone point sources, 
@@ -364,23 +368,23 @@ class OptMapping:
             print('A matrix with point sources pixel is not set up, returning None.')
             return
         #p_matrix_ps set up
-        #noise_mat = self.set_noise_mat()
+        inv_noise_mat = self.set_inv_noise_mat()
         k_facet = np.matrix(self.set_k_facet(radius_deg=facet_radius_deg, calc_k=True))
         p_mat1 = np.matmul(k_facet, self.a_mat.H)
-        #p_mat2 = np.matmul(noise_mat, self.a_mat)
-        p_mat2 = self.a_mat_ps
+        p_mat2 = np.matmul(inv_noise_mat, self.a_mat_ps)
+        #p_mat2 = self.a_mat_ps
         p_mat_ps = np.matmul(p_mat1, p_mat2)
         p_mat_ps = np.matrix(np.real(p_mat_ps))
         #normalizatoin factor set up
-        #k_facet_transpose = np.matrix(k_facet.T)
-        #p_mat_facet = np.matmul(p_mat_ps[:, :len(opt_map.idx_psf_in)], k_facet_transpose) 
-        #p_diag = np.diag(p_mat_facet)
-        #del noise_mat, k_facet, k_facet_transpose, p_mat1, p_mat2, p_mat_facet
-        del k_facet, p_mat1, p_mat2
+        k_facet_transpose = np.matrix(k_facet.T)
+        p_mat_facet = np.matmul(p_mat_ps[:, :len(self.idx_psf_in)], k_facet_transpose) 
+        p_diag_ps = np.diag(p_mat_facet)
+        del inv_noise_mat, k_facet, k_facet_transpose, p_mat1, p_mat2
         
         #attribute assignment
         self.p_mat_ps = p_mat_ps
-        return p_mat_ps
+        self.p_diag_ps = p_diag_ps
+        return p_mat_ps, p_diag_ps, p_mat_facet
         
     
     def set_k_facet(self, radius_deg, calc_k=False):

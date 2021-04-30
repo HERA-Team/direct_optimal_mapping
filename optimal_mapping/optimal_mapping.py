@@ -45,17 +45,12 @@ class OptMapping:
         self.hera_dec = self.uv.telescope_location_lat_lon_alt[0]
         self.lsts = np.unique(self.uv.lst_array)
         self.times = np.unique(uv.time_array)
+        self.equinox = epoch
         if np.mean(self.times) < 2458362: #2018-09-01
             self.feed_type = 'dipole'
         else:
             self.feed_type = 'vivaldi'
-        
-        if epoch == 'J2000':
-            self.equinox = 'J2000'
-        elif epoch == 'Current':
-            pass
-        else:
-            print('Please provide a proper epoch: either J2000 or Current')
+
         print('RA/DEC in the epoch of %s.'%self.equinox)
         
         theta, phi = hp.pix2ang(nside, range(self.npix))
@@ -100,6 +95,8 @@ class OptMapping:
             c = SkyCoord(ra=ra, dec=dec, unit='radian', frame=TETE(obstime=self.equinox))
         elif self.equinox == 'Current':
             c = SkyCoord(ra=ra, dec=dec, unit='radian', frame=TETE(obstime=obs_time))
+        else:
+            print('Please provide a proper epoch: either J2000 or Current')
         az = np.radians(c.transform_to(aa).az.value)
         alt = np.radians(c.transform_to(aa).alt.value)
         

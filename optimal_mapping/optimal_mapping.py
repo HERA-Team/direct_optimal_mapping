@@ -203,7 +203,7 @@ class OptMapping:
         ------
         a_mat: 2d matrix (complex64)
             a_matrix (Nvis X Npsf) from the given observation
-        
+
         Attribute:
         ------
         .a_mat: 2d matrix (complex64)
@@ -248,8 +248,8 @@ class OptMapping:
         ------
         ps_radec: 2d array
             with shape as n_source X 2, it saves the ra,dec of all 
-            bthe point sources (in radians)
-        
+            the point sources (in radians)
+
         Output:
         ------
         a_mat_ps: 2d matrix (complex64)

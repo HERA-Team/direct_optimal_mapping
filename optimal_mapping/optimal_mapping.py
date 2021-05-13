@@ -192,12 +192,13 @@ class OptMapping:
         
         return
 
-    def set_a_mat(self):
+    def set_a_mat(self, apply_beam=True):
         '''Calculating A matrix, covering the range defined by K_psf
         
         Input:
         ------
-        None
+        apply_beam: boolean
+            Whether apply beam to the a matrix elements, default:true
         
         Output:
         ------
@@ -236,11 +237,12 @@ class OptMapping:
         a_mat = ne.evaluate('exp(a_mat * 1j)')
         a_mat = a_mat.astype('complex64')
         a_mat = np.matrix(a_mat)
-        a_mat = np.matrix(np.multiply(a_mat, beam_mat))
+        if apply_beam:
+            a_mat = np.matrix(np.multiply(a_mat, beam_mat))
         self.a_mat = a_mat
         return a_mat
     
-    def set_a_mat_ps(self, ps_radec):
+    def set_a_mat_ps(self, ps_radec, apply_beam=True):
         '''Calculating A matrix, covering the range defined by K_psf
         + the point sources given in the ps_radec arguement
         
@@ -249,6 +251,8 @@ class OptMapping:
         ps_radec: 2d array
             with shape as n_source X 2, it saves the ra,dec of all 
             the point sources (in radians)
+        apply_beam: boolean
+            Whether apply beam to the a matrix elements, default:true
 
         Output:
         ------
@@ -289,7 +293,8 @@ class OptMapping:
         a_mat = ne.evaluate('exp(a_mat * 1j)')
         a_mat = a_mat.astype('complex64')
         a_mat = np.matrix(a_mat)
-        a_mat = np.matrix(np.multiply(a_mat, beam_mat))
+        if apply_beam:
+            a_mat = np.matrix(np.multiply(a_mat, beam_mat))
         self.a_mat_ps = a_mat
         return a_mat
     

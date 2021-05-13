@@ -34,7 +34,8 @@ class DataConditioning:
         if uv_noise is None:
             uv_cp.nsample_array = np.ones(uv_cp.nsample_array.shape)
         else:
-            uv_cp.nsample_array = np.real(uv_noise.data_array)
+            uv_cp.nsample_array[:,:,:,0] = np.real(uv_noise.data_array[:, :, :, 0])
+            uv_cp.nsample_array[:,:,:,3] = np.real(uv_noise.data_array[:, :, :, 1])
         uv_1d = uv_cp.select(freq_chans=ifreq, polarizations=ipol, 
                              inplace=False, keep_all_metadata=False)
         self.uv_1d = uv_1d

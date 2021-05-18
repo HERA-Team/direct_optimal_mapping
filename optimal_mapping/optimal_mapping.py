@@ -9,7 +9,7 @@ from astropy import units as u
 from astropy.coordinates import AltAz, SkyCoord, TETE
 import copy
 import healpy as hp
-from pyuvdata import UVData
+from pyuvdata import UVData, UVBeam
 
 from scipy.interpolate import SmoothSphereBivariateSpline as SSBS
 from scipy.interpolate import RectSphereBivariateSpline as RSBS
@@ -140,7 +140,39 @@ class OptMapping:
             return k_psf
         else:
             return
-
+    
+    def set_pyuvbeam(self, beam_model):
+        '''Set up the pyuvbeam from simulation for interpolation
+        Args
+        ------
+        beam_model: str ('vivaldi' or 'dipole')
+            beam model used for interpolation
+            
+        Output:
+        ------
+        None
+        
+        Attribute:
+        .pyuvbeam: UVBeam Object
+            UVBeam Object for beam interpolation 
+        '''
+        # loading the beamfits file
+        if beam_model == 'vivaldi':
+            #beamfits_file = '/nfs/eor-14/d1/hera/beams/Vivaldi_1.8m-detailed_mecha_design-E-field-100ohm_load-Pol_X'
+            print('Vivaldi beam simulation file is not set up yet.')
+        elif beam_model == 'dipole':
+            beamfits_file = '/nfs/ger/home/zhileixu/data/temp_data/beam/power/power_dipole_high-precision_peak-norm.fits'
+        else:
+            print('Please provide correct beam model (either vivaldi or dipole)')
+        pyuvbeam = UVBeam()
+        pyuvbeam.read_beamfits(beamfits_file)
+        pyuvbeam.interpolation_function = 'az_za_simple'
+        pyuvbeam.freq_interp_kind = 'cubic'
+        
+        # attribute assignment
+        self.pyuvbeam = pyuvbeam
+        return       
+        
     def set_beam_model(self, beam_model, interp_method='grid'):
         '''Beam interpolation model set up with RectSphereBivariantSpline
         beam power is used as sqrt(col4**2 + col6**2)
@@ -210,10 +242,13 @@ class OptMapping:
         .a_mat: 2d matrix (complex64)
             a_matrix added in the attribute
         '''
-        
+        ipol = 0
         a_mat = np.zeros((len(self.data), len(self.idx_psf_in)), dtype='float32')
         beam_mat = np.zeros(a_mat.shape, dtype='float32')
-        self.set_beam_model(beam_model=self.feed_type)
+        #self.set_beam_model(beam_model=self.feed_type)
+        self.set_pyuvbeam(beam_model=self.feed_type)
+        print('Pyuvdata readin.')
+        freq_array = np.array([self.frequency,])
         for time_t in np.unique(self.uv.time_array):
             az_t, alt_t = self._radec2azalt(self.ra[self.idx_psf_in],
                                             self.dec[self.idx_psf_in],
@@ -221,7 +256,11 @@ class OptMapping:
             lmn_t = np.array([np.cos(alt_t)*np.sin(az_t), 
                               np.cos(alt_t)*np.cos(az_t), 
                               np.sin(alt_t)])
-            beam_map_t = self.beam_model(np.pi/2. - alt_t, az_t, grid=False)
+            #beam_map_t = self.beam_model(np.pi/2. - alt_t, az_t, grid=False)
+            pyuvbeam_interp,_ = self.pyuvbeam.interp(az_array=az_t, za_array=np.pi/2. - alt_t, 
+                                                     az_za_grid=False, freq_array= freq_array, 
+                                                     new_object=False)
+            beam_map_t = pyuvbeam_interp[0, 0, ipol, 0].real
             idx_time = np.where(self.uv.time_array == time_t)[0]
             for i in range(len(idx_time)):
                 irow = idx_time[i]
@@ -264,10 +303,13 @@ class OptMapping:
         .a_mat_ps: 2d matrix (complex64)
             a_matrix_ps added in the attribute
         '''
-        
+        ipol = 0
         a_mat = np.zeros((len(self.data), len(self.idx_psf_in)+ps_radec.shape[0]), dtype='float32')
         beam_mat = np.zeros(a_mat.shape, dtype='float32')
-        self.set_beam_model(beam_model=self.feed_type)
+        #self.set_beam_model(beam_model=self.feed_type)
+        self.set_pyuvbeam(beam_model=self.feed_type)
+        print('Pyuvdata readin.')
+        freq_array = np.array([self.frequency,])
         ra_ps = ps_radec[:, 0]
         dec_ps = ps_radec[:, 1]
         for time_t in np.unique(self.uv.time_array):
@@ -277,7 +319,11 @@ class OptMapping:
             lmn_t = np.array([np.cos(alt_t)*np.sin(az_t), 
                               np.cos(alt_t)*np.cos(az_t), 
                               np.sin(alt_t)])
-            beam_map_t = self.beam_model(np.pi/2. - alt_t, az_t, grid=False)
+            #beam_map_t = self.beam_model(np.pi/2. - alt_t, az_t, grid=False)
+            pyuvbeam_interp,_ = self.pyuvbeam.interp(az_array=az_t, za_array=np.pi/2. - alt_t, 
+                                                     az_za_grid=False, freq_array= freq_array, 
+                                                     new_object=False)
+            beam_map_t = pyuvbeam_interp[0, 0, ipol, 0].real
             idx_time = np.where(self.uv.time_array == time_t)[0]
             for i in range(len(idx_time)):
                 irow = idx_time[i]

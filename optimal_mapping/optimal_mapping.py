@@ -247,7 +247,7 @@ class OptMapping:
         beam_mat = np.zeros(a_mat.shape, dtype='float32')
         #self.set_beam_model(beam_model=self.feed_type)
         self.set_pyuvbeam(beam_model=self.feed_type)
-        print('Pyuvdata readin.')
+        #print('Pyuvdata readin.')
         freq_array = np.array([self.frequency,])
         for time_t in np.unique(self.uv.time_array):
             az_t, alt_t = self._radec2azalt(self.ra[self.idx_psf_in],
@@ -308,7 +308,7 @@ class OptMapping:
         beam_mat = np.zeros(a_mat.shape, dtype='float32')
         #self.set_beam_model(beam_model=self.feed_type)
         self.set_pyuvbeam(beam_model=self.feed_type)
-        print('Pyuvdata readin.')
+        #print('Pyuvdata readin.')
         freq_array = np.array([self.frequency,])
         ra_ps = ps_radec[:, 0]
         dec_ps = ps_radec[:, 1]
@@ -344,10 +344,25 @@ class OptMapping:
         self.a_mat_ps = a_mat
         return a_mat
     
-    def set_inv_noise_mat(self):
-        '''Calculating the inverse noise matrix
+    def set_inv_noise_mat(self, uv_auto):
+        '''Calculating the inverse noise matrix with auto-correlations
+        Args:
+        ------
+        uv_auto: pyuvdata
+            pyuvdata object with the autocorrelation information
         '''
-        inv_noise_mat = np.diag(np.squeeze(self.uv.nsample_array)**(-2))
+        uvn = self.uv.select(ant_str='cross', inplace=False)
+        for bl in uvn.get_antpairs():
+            radiometer = np.sqrt(uvn.channel_width * uvn.get_nsamples(bl, squeeze='none') * np.mean(uvn.integration_time))
+            # get indices of this baseline
+            inds = uvn.antpair2ind(bl)
+            # insert uv_ready for this cross-corr
+            uvn.data_array[inds] = np.sqrt(uv_auto.get_data((bl[0], bl[0]), squeeze='none').real * \
+                                           uv_auto.get_data((bl[1], bl[1]), squeeze='none').real) / radiometer
+            # OR all flags
+            uvn.flag_array[inds] += uv_auto.get_flags((bl[0], bl[0]), squeeze='none') +\
+                                    uv_auto.get_flags((bl[1], bl[1]), squeeze='none')
+        inv_noise_mat = np.diag(np.squeeze(uvn.data_array).real**(-2))
         self.inv_noise_mat = inv_noise_mat
         self.norm_factor = np.sum(np.diag(inv_noise_mat))
 
@@ -376,7 +391,7 @@ class OptMapping:
             normalization array for the map within the facet
         '''
         #p_matrix set up
-        inv_noise_mat = self.set_inv_noise_mat()
+        #inv_noise_mat = self.set_inv_noise_mat()
         k_facet = np.matrix(self.set_k_facet(radius_deg=facet_radius_deg, calc_k=True))
         p_mat1 = np.matmul(k_facet, self.a_mat.H)
         p_mat2 = np.matmul(inv_noise_mat, self.a_mat)

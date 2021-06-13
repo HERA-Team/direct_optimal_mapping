@@ -38,14 +38,14 @@ To initiate one instance, one can do:
 ifreq = 758 #Frequency Channel No.
 ipol = -5 # polarization number with -5 to -8 referring to XX, YY, XY, YX
 dc = data_conditioning.DataConditioning(uv, ifreq, ipol)
-uv_ready = dc.rm_flag(dc.uv_1d)
-opt_map = optimal_mapping.OptMapping(uv_ready, nside, epoch='J2000')
+dc.rm_flag(dc.uv_1d)
+opt_map = optimal_mapping.OptMapping(dc.uv_1d, nside, epoch='J2000')
 ```
 
 where `uv` is one pyuvdata object (discussed more later),
-`uv_ready` is the processed pyuvdata object with one polarizatoin and one frequency, and 
-flagged data removed, `nside` is the for the healpix map. The ephoch is also specified as 
-'J2000' here.
+After the `rm_flag` function, `dc.uv_1d` is the processed pyuvdata object with one polarizatoin and one frequency, and 
+flagged data removed, `nside` is the for the healpix map. In the meantime, the `dc` object has a `uv_auto` attribute for
+noise calculation later. The ephoch is also specified as 'J2000' here.
 
 Then another line can be run:
 
@@ -59,15 +59,17 @@ the `calc_k` flag is set as `False`, which saves memory.
 After the previous preparations, the A matrix can be calculated via:
 
 ```python
-a_mat = opt_map.set_a_mat()
+opt_map.set_a_mat()
+opt_map.set_inv_noise_mat(dc.uv_auto)
 ```
 
-where the a_mat is calculated within the range of the PSF.
+where the `set_a_mat` function adds a `.a_mat` attribute as the A matrix; the `set_inv_noise_mat` adds a `.inv_noise_mat` 
+attribute as the inverse N matrix. The A matrix is calculated within the range of the PSF.
 
 Then the map can be generated with the data via:
 
 ```python
-hmap = np.matmul(a_mat.H, opt_map.data)
+hmap = np.matmul(np.matrix(opt_map.a_mat.H), np.matmul(opt_map.inv_noise_mat, np.matrix(opt_map.data)))
 ```
 
 Please note that hmap only covers the area within the PSF.

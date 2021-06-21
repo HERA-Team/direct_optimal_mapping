@@ -5,7 +5,7 @@ for the HERA project.
 Installation
 ===========
 
-This package can be installed via `pip`:
+This package can be installed via `pip`. After descending into the `direct_optimal_mapping` folder, please run:
 ```
 pip install .
 ```
@@ -38,14 +38,20 @@ To initiate one instance, one can do:
 ifreq = 758 #Frequency Channel No.
 ipol = -5 # polarization number with -5 to -8 referring to XX, YY, XY, YX
 dc = data_conditioning.DataConditioning(uv, ifreq, ipol)
-dc.rm_flag(dc.uv_1d)
+dc.noise_calc()
+dc.rm_flag()
 opt_map = optimal_mapping.OptMapping(dc.uv_1d, nside, epoch='J2000')
 ```
 
-where `uv` is one pyuvdata object (discussed more later),
-After the `rm_flag` function, `dc.uv_1d` is the processed pyuvdata object with one polarizatoin and one frequency, and 
-flagged data removed, `nside` is the for the healpix map. In the meantime, the `dc` object has a `uv_auto` attribute for
-noise calculation later. The ephoch is also specified as 'J2000' here.
+The first line initiated the `DataConditioning` object as `dc`, where `uv` is one pyuvdata object (to be discussed more later). 
+The `dc` object initiation stripped the `uv` object with 
+one polarizatoin and one frequency.
+The `noise_calc()` function calculates the visibility noise from the autocorrelations, the result is saved as a pyuvdata
+object in the `dc` attribute `dc.uvn`. 
+Then the the `rm_flag()` function removes flagged data considering both the flagged
+data in the original pyuvdata object and the noise pyuvdata object. 
+The last line initated the `OptimalMapping` object as `opt_map`, where `dc.uv_1d` is the processed pyuvdata object with one polarizatoin and one frequency, and 
+flagged data removed, `nside` is the for the healpix map. In this example, the ephoch is also specified as 'J2000'.
 
 Then another line can be run:
 
@@ -60,10 +66,11 @@ After the previous preparations, the A matrix can be calculated via:
 
 ```python
 opt_map.set_a_mat()
-opt_map.set_inv_noise_mat(dc.uv_auto)
+opt_map.set_inv_noise_mat(dc.uvn)
 ```
 
-where the `set_a_mat` function adds a `.a_mat` attribute as the A matrix; the `set_inv_noise_mat` adds a `.inv_noise_mat` 
+where the `set_a_mat()` function adds a `.a_mat` attribute as the A matrix; the `set_inv_noise_mat()` function uses the 
+noise information in the `.uvn` object and adds a `.inv_noise_mat` 
 attribute as the inverse N matrix. The A matrix is calculated within the range of the PSF.
 
 Then the map can be generated with the data via:
@@ -72,7 +79,9 @@ Then the map can be generated with the data via:
 hmap = np.matmul(np.matrix(opt_map.a_mat.H), np.matmul(opt_map.inv_noise_mat, np.matrix(opt_map.data)))
 ```
 
-Please note that hmap only covers the area within the PSF.
+Please note that hmap only covers the area within the PSF. The calculated pixels are a subset of the full-sky healpix
+map at the corresponding nside. `opt_map.idx_psf_in` saves the index information of the hmap pixels in the full-sky healpix
+map.
 
 This only gives a brief introdution, more details can be explored in the data_conditioning.py 
 and optimal_mapping.py files with the help of docstrings and comments.
@@ -96,9 +105,3 @@ An example is shown here:
 uv.select(ant_str='cross')
 uv.reorder_blts('baseline')
 ```
-
-Note
-====
-
-This project has been set up using PyScaffold 4.0.1. For details and usage
-information on PyScaffold see https://pyscaffold.org/.

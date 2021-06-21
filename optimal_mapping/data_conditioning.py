@@ -32,6 +32,23 @@ class DataConditioning:
         self.uv_auto = uv_auto.select(freq_chans=ifreq, polarizations=ipol,
                                       inplace=False, keep_all_metadata=False)   
 
+    def noise_calc(self):
+        '''Calculating noise from the autocorrelations
+        '''
+        uvn = copy.deepcopy(self.uv_1d)
+        for bl in uvn.get_antpairs():
+            radiometer = np.sqrt(uvn.channel_width * uvn.get_nsamples(bl, squeeze='none') * np.mean(uvn.integration_time))
+            # get indices of this baseline
+            inds = uvn.antpair2ind(bl)
+            # insert uv_ready for this cross-corr
+            uvn.data_array[inds] = np.sqrt(self.uv_auto.get_data((bl[0], bl[0]), squeeze='none').real * \
+                                           self.uv_auto.get_data((bl[1], bl[1]), squeeze='none').real) / radiometer
+            # OR all flags
+            uvn.flag_array[inds] += self.uv_auto.get_flags((bl[0], bl[0]), squeeze='none') +\
+                                    self.uv_auto.get_flags((bl[1], bl[1]), squeeze='none')
+        self.uvn = uvn
+        return uvn
+    
     def rm_flag(self, uv=None):
         '''Remove flagged data visibilities, keeping the original
         data object untouched
@@ -52,13 +69,13 @@ class DataConditioning:
         if np.all(uv.flag_array):
             print('All data are flagged. Returning None.')
             return None
-        idx_t = np.where(uv.flag_array==False)[0]
-        uv_flag_rm = uv.select(blt_inds=idx_t, 
+        idx_t = np.where((self.uv_1d.flag_array | self.uvn.flag_array)==False)[0]
+        self.uv_1d = uv.select(blt_inds=idx_t, 
                                inplace=False, keep_all_metadata=False)
-        if hasattr(self.uv_1d, 'noise_array'):
-            uv_flag_rm.noise_array = self.uv_1d.noise_array[idx_t]
+        self.uvn = self.uvn.select(blt_inds=idx_t, 
+                                   inplace=False, keep_all_metadata=False)
         
-        return uv_flag_rm
+        return self.uv_1d
         
     def redundant_avg(self, uv, tol=1.0):
         '''Averaging within each redundant group, keeping the original

@@ -344,24 +344,13 @@ class OptMapping:
         self.a_mat_ps = a_mat
         return a_mat
     
-    def set_inv_noise_mat(self, uv_auto):
+    def set_inv_noise_mat(self, uvn):
         '''Calculating the inverse noise matrix with auto-correlations
         Args:
         ------
-        uv_auto: pyuvdata
-            pyuvdata object with the autocorrelation information
+        uvn: pyuvdata
+            pyuvdata object with estimated noise information
         '''
-        uvn = self.uv.select(ant_str='cross', inplace=False)
-        for bl in uvn.get_antpairs():
-            radiometer = np.sqrt(uvn.channel_width * uvn.get_nsamples(bl, squeeze='none') * np.mean(uvn.integration_time))
-            # get indices of this baseline
-            inds = uvn.antpair2ind(bl)
-            # insert uv_ready for this cross-corr
-            uvn.data_array[inds] = np.sqrt(uv_auto.get_data((bl[0], bl[0]), squeeze='none').real * \
-                                           uv_auto.get_data((bl[1], bl[1]), squeeze='none').real) / radiometer
-            # OR all flags
-            uvn.flag_array[inds] += uv_auto.get_flags((bl[0], bl[0]), squeeze='none') +\
-                                    uv_auto.get_flags((bl[1], bl[1]), squeeze='none')
         inv_noise_mat = np.diag(np.squeeze(uvn.data_array).real**(-2))
         self.inv_noise_mat = inv_noise_mat
         self.norm_factor = np.sum(np.diag(inv_noise_mat))
@@ -391,17 +380,17 @@ class OptMapping:
             normalization array for the map within the facet
         '''
         #p_matrix set up
-        #inv_noise_mat = self.set_inv_noise_mat()
         k_facet = np.matrix(self.set_k_facet(radius_deg=facet_radius_deg, calc_k=True))
         p_mat1 = np.matmul(k_facet, self.a_mat.H)
-        p_mat2 = np.matmul(inv_noise_mat, self.a_mat)
+        p_mat2 = np.matmul(self.inv_noise_mat, self.a_mat)
         p_mat = np.matmul(p_mat1, p_mat2)
         p_mat = np.matrix(np.real(p_mat))
         #normalizatoin factor set up
         k_facet_transpose = np.matrix(k_facet.T)
         p_mat_facet = np.matmul(p_mat, k_facet_transpose) 
         p_diag = np.diag(p_mat_facet)
-        del inv_noise_mat, k_facet, p_mat1, p_mat2
+        #del inv_noise_mat, k_facet, p_mat1, p_mat2
+        del k_facet, p_mat1, p_mat2
         
         #attribute assignment
         self.p_mat = p_mat
@@ -431,10 +420,9 @@ class OptMapping:
             print('A matrix with point sources pixel is not set up, returning None.')
             return
         #p_matrix_ps set up
-        inv_noise_mat = self.set_inv_noise_mat()
         k_facet = np.matrix(self.set_k_facet(radius_deg=facet_radius_deg, calc_k=True))
         p_mat1 = np.matmul(k_facet, self.a_mat.H)
-        p_mat2 = np.matmul(inv_noise_mat, self.a_mat_ps)
+        p_mat2 = np.matmul(self.inv_noise_mat, self.a_mat_ps)
         #p_mat2 = self.a_mat_ps
         p_mat_ps = np.matmul(p_mat1, p_mat2)
         p_mat_ps = np.matrix(np.real(p_mat_ps))
@@ -442,7 +430,8 @@ class OptMapping:
         k_facet_transpose = np.matrix(k_facet.T)
         p_square = np.matmul(p_mat_ps[:, :len(self.idx_psf_in)], k_facet_transpose) 
         p_diag_ps = np.diag(p_square)
-        del inv_noise_mat, k_facet, k_facet_transpose, p_mat1, p_mat2
+        #del inv_noise_mat, k_facet, k_facet_transpose, p_mat1, p_mat2
+        del k_facet, k_facet_transpose, p_mat1, p_mat2
         
         #attribute assignment
         self.p_mat_ps = p_mat_ps

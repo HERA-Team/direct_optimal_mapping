@@ -18,7 +18,7 @@ Description
 Currently, the package contains two main classes `DataConditioning` and `OptMapping`.
 
 The `DataConditioning` class provides necessary tools to select one frequency channel
-and one polarization from the raw data. It can also perform redundant averaging and 
+and one polarization from the raw data. It can also perform noise calculation and 
 flagged-data removal. It will output a prepared pyuvdata object for the mapping part.
 
 The `OptMapping` class contains the tools to calculate the mapping matrix (A-matrix) of
@@ -45,13 +45,15 @@ opt_map = optimal_mapping.OptMapping(dc.uv_1d, nside, epoch='J2000')
 
 The first line initiated the `DataConditioning` object as `dc`, where `uv` is one pyuvdata object (to be discussed more later). 
 The `dc` object initiation stripped the `uv` object with 
-one polarizatoin and one frequency.
-The `noise_calc()` function calculates the visibility noise from the autocorrelations, the result is saved as a pyuvdata
-object in the `dc` attribute `dc.uvn`. 
-Then the the `rm_flag()` function removes flagged data considering both the flagged
-data in the original pyuvdata object and the noise pyuvdata object. 
-The last line initated the `OptimalMapping` object as `opt_map`, where `dc.uv_1d` is the processed pyuvdata object with one polarizatoin and one frequency, and 
-flagged data removed, `nside` is the for the healpix map. In this example, the ephoch is also specified as 'J2000'.
+one polarizatoin and one frequency, saved as an attribute, `dc.uv_1d`.
+
+The `noise_calc()` function calculates the visibility noise from the autocorrelations, the result is saved in a pyuvdata
+object as an attribute, `dc.uvn`. 
+
+Then the `rm_flag()` function removes flagged data considering both the flagged
+data in `dc.uv_1d` and `dc.uvn`. 
+The last line initated the `OptMapping` object as `opt_map`, where `dc.uv_1d` is the processed pyuvdata object, 
+`nside` is the for the healpix map, 'J2000' is the epoch of this calculation.
 
 Then another line can be run:
 
@@ -59,8 +61,8 @@ Then another line can be run:
 opt_map.set_k_psf(radius_deg=50, calc_k=False)
 ```
 
-where it sets up the range of the PSF. Note: K_PSF is not calculated here since
-the `calc_k` flag is set as `False`, which saves memory.
+where it sets up the range of the PSF. The indices of the selected pixels are saved in `opt_map.idx_psf_in`.
+Note: K_PSF is not calculated here since the `calc_k` flag is set as `False`, which saves memory.
 
 After the previous preparations, the A matrix can be calculated via:
 
@@ -70,7 +72,7 @@ opt_map.set_inv_noise_mat(dc.uvn)
 ```
 
 where the `set_a_mat()` function adds a `.a_mat` attribute as the A matrix; the `set_inv_noise_mat()` function uses the 
-noise information in the `.uvn` object and adds a `.inv_noise_mat` 
+noise information in the `dc.uvn` object and adds a `.inv_noise_mat` 
 attribute as the inverse N matrix. The A matrix is calculated within the range of the PSF.
 
 Then the map can be generated with the data via:
@@ -80,8 +82,7 @@ hmap = np.matmul(np.matrix(opt_map.a_mat.H), np.matmul(opt_map.inv_noise_mat, np
 ```
 
 Please note that hmap only covers the area within the PSF. The calculated pixels are a subset of the full-sky healpix
-map at the corresponding nside. `opt_map.idx_psf_in` saves the index information of the hmap pixels in the full-sky healpix
-map.
+pixels. `opt_map.idx_psf_in` saves the index information of the hmap pixels in the full-sky healpix map.
 
 This only gives a brief introdution, more details can be explored in the data_conditioning.py 
 and optimal_mapping.py files with the help of docstrings and comments.

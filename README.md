@@ -96,13 +96,4 @@ The uv object can be read in via:
 uv = UVData()
 uv.read(filepath)
 ```
-where `filepath` is the address to the .uvh5 file.
-Then the uv object should include only 'cross' correlations and ordered
-by baselines (this is because the internal calculation of the OptMapping object was set that way). 
-
-An example is shown here:
-
-```python
-uv.select(ant_str='cross')
-uv.reorder_blts('baseline')
-```
+where `filepath` is the address to the .uvh5 file. More details can be found in this GitHub repository: https://github.com/RadioAstronomySoftwareGroup/pyuvdata

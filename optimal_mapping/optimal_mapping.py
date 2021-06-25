@@ -4,9 +4,8 @@ import healpy as hp
 from astropy.table import Table
 from astropy.time import Time
 from astropy import constants
-from astropy.coordinates import EarthLocation
 from astropy import units as u
-from astropy.coordinates import AltAz, SkyCoord, TETE
+from astropy.coordinates import EarthLocation, AltAz, SkyCoord, TETE
 import copy
 import healpy as hp
 from pyuvdata import UVData, UVBeam

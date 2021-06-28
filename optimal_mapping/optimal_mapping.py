@@ -384,6 +384,7 @@ class OptMapping:
         p_mat2 = np.matmul(self.inv_noise_mat, self.a_mat)
         p_mat = np.matmul(p_mat1, p_mat2)
         p_mat = np.matrix(np.real(p_mat))
+        p_mat = p_mat/self.norm_factor
         #normalizatoin factor set up
         k_facet_transpose = np.matrix(k_facet.T)
         p_mat_facet = np.matmul(p_mat, k_facet_transpose) 
@@ -425,6 +426,7 @@ class OptMapping:
         #p_mat2 = self.a_mat_ps
         p_mat_ps = np.matmul(p_mat1, p_mat2)
         p_mat_ps = np.matrix(np.real(p_mat_ps))
+        p_mat_ps = p_mat_ps/self.norm_factor
         #normalizatoin factor set up
         k_facet_transpose = np.matrix(k_facet.T)
         p_square = np.matmul(p_mat_ps[:, :len(self.idx_psf_in)], k_facet_transpose) 

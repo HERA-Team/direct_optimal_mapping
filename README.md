@@ -53,9 +53,11 @@ object as an attribute, `dc.uvn`.
 
 Then the `rm_flag()` function removes flagged data considering both the flagged
 data in `dc.uv_1d` and `dc.uvn`.
+
 The `redundant_avg()` function redundant averages both the data and the noise; the noise data are further
-scaled down by the number of baseines included in one group. If N is the number of redundant baselines, the
+scaled down considering the number of baseines included in one group. If N is the number of redundant baselines, the
 scaling is sqrt(N).
+
 The last line initated the `OptMapping` object as `opt_map`, where `dc.uv_1d` is the processed pyuvdata object, 
 `nside` is the for the healpix map, 'J2000' is the epoch of this calculation.
 

@@ -30,7 +30,8 @@ class DataConditioning:
                                      inplace=False, keep_all_metadata=False)
         uv_auto = uv_cp.select(ant_str='auto', inplace=False)
         self.uv_auto = uv_auto.select(freq_chans=ifreq, polarizations=ipol,
-                                      inplace=False, keep_all_metadata=False)   
+                                      inplace=False, keep_all_metadata=False)
+        self.log = ['Init., freq. and pol. selected.',]
 
     def noise_calc(self):
         '''Calculating noise from the autocorrelations
@@ -47,6 +48,7 @@ class DataConditioning:
             uvn.flag_array[inds] += self.uv_auto.get_flags((bl[0], bl[0]), squeeze='none') +\
                                     self.uv_auto.get_flags((bl[1], bl[1]), squeeze='none')
         self.uvn = uvn
+        self.log.append('Noise calculated.')
         return uvn
     
     def rm_flag(self, uv=None):
@@ -74,34 +76,42 @@ class DataConditioning:
                                inplace=False, keep_all_metadata=False)
         self.uvn = self.uvn.select(blt_inds=idx_t, 
                                    inplace=False, keep_all_metadata=False)
-        
+        self.log.append('Flag removed.')
         return self.uv_1d
         
-    def redundant_avg(self, uv, tol=1.0):
+    def redundant_avg(self, tol=1.0):
         '''Averaging within each redundant group, keeping the original
-        data object untouched
+        data object untouched, updating the uv_1d and uvn attribute with
+        the redundant averaged ones
         
-        Input
-        ------
-        uv: UVData object
-            input UVData object to be flag-removed
-            The UVData.data_array must only have one dimension along blt
-            
+        Args:
+        ------            
         tol: float
             tolerace of the redundant baseline grouping (in meters)
         
-        Output
+        Return:
         ------
-        uv_red_avg: UVData object
-            redundant-baseline averaged UVData object
+        None
         
         '''
         # redundant baseline averaging
-        uv_red_avg = uv.compress_by_redundancy(tol=tol,
-                                               method='average',
-                                               inplace=False,
-                                               keep_all_metadata=False,)
-        return uv_red_avg
+        self.uv_1d.compress_by_redundancy(tol=tol,
+                                          method='average',
+                                          inplace=True,
+                                          keep_all_metadata=False,)
+        # noise redundant averaging
+        bl_grp,_,_ = self.uvn.get_redundancies(tol=tol)
+        n_bl = np.array([len(grp_t) for grp_t in bl_grp])
+        self.uvn.compress_by_redundancy(tol=tol,
+                                        method='average',
+                                        inplace=True,
+                                        keep_all_metadata=False)
+        for time_t in np.unique(self.uvn.time_array):
+            idx_t = np.where(self.uvn.time_array == time_t)[0]
+            self.uvn.data_array[idx_t, 0, 0, 0] /= np.sqrt(n_bl)
+            
+        self.log.append('Redundant averaged.')
+        return
         
     def redundant_grouping(self, tol=1.0):
         '''Grouping the baselines within the UVData

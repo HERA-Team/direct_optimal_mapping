@@ -157,14 +157,18 @@ class OptMapping:
         '''
         # loading the beamfits file
         if beam_model == 'vivaldi':
-            #beamfits_file = '/nfs/eor-14/d1/hera/beams/Vivaldi_1.8m-detailed_mecha_design-E-field-100ohm_load-Pol_X'
-            print('Vivaldi beam simulation file is not set up yet.')
+            beamfits_file = '/nfs/esc/hera/HERA_beams/high_precision_runs/outputs/'+\
+            'cst_vivaldi_time_solver_simplified_master_Apr2021/uvbeam/'+\
+            'efield_farfield_Vivaldi_pos_0.0_0.0_0.0_0.0_0.0_160_180MHz_high_precision_0.125MHz_simplified_model.beamfits'
+            #print('Vivaldi beam simulation file is not set up yet.')
         elif beam_model == 'dipole':
-            beamfits_file = '/nfs/ger/home/zhileixu/data/temp_data/beam/power/power_dipole_high-precision_peak-norm.fits'
+            beamfits_file = '/nfs/ger/home/zhileixu/data/git_beam/HERA-Beams/NicolasFagnoniBeams/NF_HERA_Dipole_efield_beam_high-precision.fits'
         else:
             print('Please provide correct beam model (either vivaldi or dipole)')
         pyuvbeam = UVBeam()
         pyuvbeam.read_beamfits(beamfits_file)
+        pyuvbeam.efield_to_power()
+        pyuvbeam.peak_normalize()
         pyuvbeam.interpolation_function = 'az_za_simple'
         pyuvbeam.freq_interp_kind = 'cubic'
         

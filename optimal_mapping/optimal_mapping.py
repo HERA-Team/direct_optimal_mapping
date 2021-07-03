@@ -50,7 +50,7 @@ class OptMapping:
         else:
             self.feed_type = 'vivaldi'
 
-        print('RA/DEC in the epoch of %s.'%self.equinox)
+        print('RA/DEC in the epoch of %s, with %s beam used.'%(self.equinox, self.feed_type))
         
         theta, phi = hp.pix2ang(nside, range(self.npix))
         self.ra = phi
@@ -381,6 +381,9 @@ class OptMapping:
             p_matrix from the given observation as an attribute
         .p_diag: 1d array (complex64)
             normalization array for the map within the facet
+        .p_square: 2d matrix (complex64)
+            square p matrix containing only the facet pixels on 
+            both dimensions
         '''
         #p_matrix set up
         k_facet = np.matrix(self.set_k_facet(radius_deg=facet_radius_deg, calc_k=True))
@@ -391,15 +394,16 @@ class OptMapping:
         p_mat = p_mat/self.norm_factor
         #normalizatoin factor set up
         k_facet_transpose = np.matrix(k_facet.T)
-        p_mat_facet = np.matmul(p_mat, k_facet_transpose) 
-        p_diag = np.diag(p_mat_facet)
+        p_square = np.matmul(p_mat, k_facet_transpose) 
+        p_diag = np.diag(p_square)
         #del inv_noise_mat, k_facet, p_mat1, p_mat2
         del k_facet, p_mat1, p_mat2
         
         #attribute assignment
         self.p_mat = p_mat
         self.p_diag = p_diag
-        return p_mat, p_diag, p_mat_facet
+        self.p_square = p_square
+        return p_mat, p_diag, p_square
     
     def set_p_mat_ps(self, facet_radius_deg=7):
         '''Calculating P matrix with stand-alone point sources, 
@@ -419,6 +423,11 @@ class OptMapping:
         ------
         .p_mat_ps: 2d matrix (complex64)
             p_matrix_ps from the given observation as an attribute
+        .p_diag_ps: 1d array (complex64)
+            normalization array for the map within the facet
+        .p_square_ps: 2d matrix (complex64)
+            square p matrix containing only the facet pixels on 
+            both dimensions
         '''
         if not hasattr(self, 'a_mat_ps'):
             print('A matrix with point sources pixel is not set up, returning None.')

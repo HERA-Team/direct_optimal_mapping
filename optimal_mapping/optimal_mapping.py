@@ -18,7 +18,7 @@ class OptMapping:
     '''Optimal Mapping Object
     '''
     
-    def __init__(self, uv, nside, epoch='J2000'):
+    def __init__(self, uv, nside, epoch='J2000', feed=None):
         '''Init function for basic setup
          
         Input
@@ -29,6 +29,9 @@ class OptMapping:
             nside of the healpix map
         epoch: str
             epoch of the map, can be either 'J2000' or 'Current'
+        feed: str
+            feed type 'dipole' or 'vivaldi'. Default is None, and feed type is determined by
+            the observation date
         Return
         ------
         None        
@@ -45,10 +48,13 @@ class OptMapping:
         self.lsts = np.unique(self.uv.lst_array)
         self.times = np.unique(uv.time_array)
         self.equinox = epoch
-        if np.mean(self.times) < 2458362: #2018-09-01
-            self.feed_type = 'dipole'
+        if feed is None:
+            if np.mean(self.times) < 2458362: #2018-09-01
+                self.feed_type = 'dipole'
+            else:
+                self.feed_type = 'vivaldi'
         else:
-            self.feed_type = 'vivaldi'
+            self.feed_type = feed
 
         print('RA/DEC in the epoch of %s, with %s beam used.'%(self.equinox, self.feed_type))
         

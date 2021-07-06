@@ -227,11 +227,13 @@ class OptMapping:
         
         return
 
-    def set_a_mat(self, apply_beam=True):
+    def set_a_mat(self, uvw_sign=1, apply_beam=True):
         '''Calculating A matrix, covering the range defined by K_psf
         
         Input:
         ------
+        uvw_sign: 1 or -1
+            uvw sign for the baseline calculation
         apply_beam: boolean
             Whether apply beam to the a matrix elements, default:true
         
@@ -268,7 +270,7 @@ class OptMapping:
             for i in range(len(idx_time)):
                 irow = idx_time[i]
                 a_mat[irow] = +2*np.pi/self.wavelength*np.matmul(np.matrix(self.uv.uvw_array[irow].astype(np.float32)),
-                                                                 np.matrix(lmn_t.astype(np.float32)))
+                                                                 uvw_sign * np.matrix(lmn_t.astype(np.float32)))
                 if self.flag[irow] == False:
                     beam_mat[irow] = beam_map_t.astype(np.float32)
                 elif self.flag[irow] == True:
@@ -284,7 +286,7 @@ class OptMapping:
         self.a_mat = a_mat
         return a_mat
     
-    def set_a_mat_ps(self, ps_radec, apply_beam=True):
+    def set_a_mat_ps(self, ps_radec, uvw_sign, apply_beam=True):
         '''Calculating A matrix, covering the range defined by K_psf
         + the point sources given in the ps_radec arguement
         
@@ -293,6 +295,8 @@ class OptMapping:
         ps_radec: 2d array
             with shape as n_source X 2, it saves the ra,dec of all 
             the point sources (in radians)
+        uvw_sign: 1 or -1
+            uvw sign for the baseline calculation
         apply_beam: boolean
             Whether apply beam to the a matrix elements, default:true
 
@@ -331,7 +335,7 @@ class OptMapping:
             for i in range(len(idx_time)):
                 irow = idx_time[i]
                 a_mat[irow] = +2*np.pi/self.wavelength*np.matmul(np.matrix(self.uv.uvw_array[irow].astype(np.float32)),
-                                                                 np.matrix(lmn_t.astype(np.float32)))
+                                                                 uvw_sign * np.matrix(lmn_t.astype(np.float32)))
                 if self.flag[irow] == False:
                     beam_mat[irow] = beam_map_t.astype(np.float32)
                 elif self.flag[irow] == True:

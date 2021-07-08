@@ -174,6 +174,7 @@ class OptMapping:
         pyuvbeam = UVBeam()
         pyuvbeam.read_beamfits(beamfits_file)
         pyuvbeam.efield_to_power()
+        pyuvbeam.select(polarizations=self.uv.polarization_array)
         pyuvbeam.peak_normalize()
         pyuvbeam.interpolation_function = 'az_za_simple'
         pyuvbeam.freq_interp_kind = 'cubic'
@@ -253,7 +254,6 @@ class OptMapping:
         .a_mat: 2d matrix (complex64)
             a_matrix added in the attribute
         '''
-        ipol = 0
         a_mat = np.zeros((len(self.data), len(self.idx_psf_in)), dtype='float32')
         beam_mat = np.zeros(a_mat.shape, dtype='float32')
         #self.set_beam_model(beam_model=self.feed_type)
@@ -269,9 +269,8 @@ class OptMapping:
                               np.sin(alt_t)])
             #beam_map_t = self.beam_model(np.pi/2. - alt_t, az_t, grid=False)
             pyuvbeam_interp,_ = self.pyuvbeam.interp(az_array=az_t, za_array=np.pi/2. - alt_t, 
-                                                     az_za_grid=False, freq_array= freq_array, 
-                                                     new_object=False)
-            beam_map_t = pyuvbeam_interp[0, 0, ipol, 0].real
+                                                     az_za_grid=False, freq_array= freq_array)            
+            beam_map_t = pyuvbeam_interp[0, 0, 0, 0].real
             idx_time = np.where(self.uv.time_array == time_t)[0]
             for i in range(len(idx_time)):
                 irow = idx_time[i]
@@ -292,7 +291,7 @@ class OptMapping:
         self.a_mat = a_mat
         return a_mat
     
-    def set_a_mat_ps(self, ps_radec, uvw_sign, apply_beam=True):
+    def set_a_mat_ps(self, ps_radec, uvw_sign=1, apply_beam=True):
         '''Calculating A matrix, covering the range defined by K_psf
         + the point sources given in the ps_radec arguement
         
@@ -316,7 +315,6 @@ class OptMapping:
         .a_mat_ps: 2d matrix (complex64)
             a_matrix_ps added in the attribute
         '''
-        ipol = 0
         a_mat = np.zeros((len(self.data), len(self.idx_psf_in)+ps_radec.shape[0]), dtype='float32')
         beam_mat = np.zeros(a_mat.shape, dtype='float32')
         #self.set_beam_model(beam_model=self.feed_type)
@@ -334,9 +332,8 @@ class OptMapping:
                               np.sin(alt_t)])
             #beam_map_t = self.beam_model(np.pi/2. - alt_t, az_t, grid=False)
             pyuvbeam_interp,_ = self.pyuvbeam.interp(az_array=az_t, za_array=np.pi/2. - alt_t, 
-                                                     az_za_grid=False, freq_array= freq_array, 
-                                                     new_object=False)
-            beam_map_t = pyuvbeam_interp[0, 0, ipol, 0].real
+                                                     az_za_grid=False, freq_array= freq_array)
+            beam_map_t = pyuvbeam_interp[0, 0, 0, 0].real
             idx_time = np.where(self.uv.time_array == time_t)[0]
             for i in range(len(idx_time)):
                 irow = idx_time[i]

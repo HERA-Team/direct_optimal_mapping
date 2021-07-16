@@ -174,9 +174,9 @@ class OptMapping:
             print('Please provide correct beam model (either vivaldi or dipole)')
         pyuvbeam = UVBeam()
         pyuvbeam.read_beamfits(beamfits_file)        
-        #pyuvbeam.efield_to_power()
+        pyuvbeam.efield_to_power()
         #pyuvbeam.select(polarizations=self.uv.polarization_array)
-        #pyuvbeam.select(polarizations=[-5,])
+        #pyuvbeam.select(polarizations=[-6,])
         #print(pyuvbeam.polarization_array)
         pyuvbeam.peak_normalize()
         pyuvbeam.interpolation_function = 'az_za_simple'
@@ -323,15 +323,16 @@ class OptMapping:
                               np.cos(alt_t)*np.cos(az_t), 
                               np.sin(alt_t)])
             #beam_map_t = self.beam_model(np.pi/2. - alt_t, az_t, grid=False)
-            #pyuvbeam_interp,_ = self.pyuvbeam.interp(az_array=az_t, za_array=np.pi/2. - alt_t, 
-            #                                         az_za_grid=False, freq_array= freq_array,
-            #                                         reuse_spline=True) 
-            print('efield interpolation...')
-            pyuvbeam_interp_e, vectors = self.pyuvbeam.interp(az_array=az_t, za_array=np.pi/2. - alt_t, 
-                                                              az_za_grid=False, freq_array= freq_array,
-                                                              reuse_spline=True)
-            pyuvbeam_interp = self.pyuvbeam_efield_to_power(pyuvbeam_interp_e, vectors)
+            pyuvbeam_interp,_ = self.pyuvbeam.interp(az_array=az_t, za_array=np.pi/2. - alt_t, 
+                                                     az_za_grid=False, freq_array= freq_array,
+                                                     reuse_spline=True) 
+            #print('efield interpolation...')
+            #pyuvbeam_interp_e, vectors = self.pyuvbeam.interp(az_array=az_t, za_array=np.pi/2. - alt_t, 
+            #                                                  az_za_grid=False, freq_array= freq_array,
+            #                                                  reuse_spline=True)
+            #pyuvbeam_interp = self.pyuvbeam_efield_to_power(pyuvbeam_interp_e, vectors)
             ipol = 1
+            print(ipol)
             beam_map_t = pyuvbeam_interp[0, 0, ipol, 0].real
             #beam_map_t = self.beam_dic[time_t]
             idx_time = np.where(self.uv.time_array == time_t)[0]
@@ -447,15 +448,16 @@ class OptMapping:
                               np.cos(alt_t)*np.cos(az_t), 
                               np.sin(alt_t)])
             #beam_map_t = self.beam_model(np.pi/2. - alt_t, az_t, grid=False)
-            #pyuvbeam_interp,_ = self.pyuvbeam.interp(az_array=az_t, za_array=np.pi/2. - alt_t, 
-            #                                         az_za_grid=False, freq_array= freq_array,
-            #                                         reuse_spline=True)
-            print('efield interpolation')
-            pyuvbeam_interp_e, vectors = self.pyuvbeam.interp(az_array=az_t, za_array=np.pi/2. - alt_t, 
-                                                              az_za_grid=False, freq_array= freq_array,
-                                                              reuse_spline=True)
-            pyuvbeam_interp = self.pyuvbeam_efield_to_power(pyuvbeam_interp_e, vectors)
+            pyuvbeam_interp,_ = self.pyuvbeam.interp(az_array=az_t, za_array=np.pi/2. - alt_t, 
+                                                     az_za_grid=False, freq_array= freq_array,
+                                                     reuse_spline=True)
+            #print('efield interpolation')
+            #pyuvbeam_interp_e, vectors = self.pyuvbeam.interp(az_array=az_t, za_array=np.pi/2. - alt_t, 
+            #                                                  az_za_grid=False, freq_array= freq_array,
+            #                                                  reuse_spline=True)
+            #pyuvbeam_interp = self.pyuvbeam_efield_to_power(pyuvbeam_interp_e, vectors)
             ipol = 1
+            print(ipol)
             beam_map_t = pyuvbeam_interp[0, 0, ipol, 0].real
             #beam_map_t = self.beam_dic[time_t]
             idx_time = np.where(self.uv.time_array == time_t)[0]

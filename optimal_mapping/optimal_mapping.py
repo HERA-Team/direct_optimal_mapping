@@ -175,7 +175,7 @@ class OptMapping:
         pyuvbeam = UVBeam()
         pyuvbeam.read_beamfits(beamfits_file)        
         pyuvbeam.efield_to_power()
-        #pyuvbeam.select(polarizations=self.uv.polarization_array)
+        pyuvbeam.select(polarizations=self.uv.polarization_array)
         #pyuvbeam.select(polarizations=[-6,])
         #print(pyuvbeam.polarization_array)
         pyuvbeam.peak_normalize()
@@ -331,7 +331,7 @@ class OptMapping:
             #                                                  az_za_grid=False, freq_array= freq_array,
             #                                                  reuse_spline=True)
             #pyuvbeam_interp = self.pyuvbeam_efield_to_power(pyuvbeam_interp_e, vectors)
-            ipol = 1
+            ipol = 0
             print(ipol)
             beam_map_t = pyuvbeam_interp[0, 0, ipol, 0].real
             #beam_map_t = self.beam_dic[time_t]
@@ -456,7 +456,7 @@ class OptMapping:
             #                                                  az_za_grid=False, freq_array= freq_array,
             #                                                  reuse_spline=True)
             #pyuvbeam_interp = self.pyuvbeam_efield_to_power(pyuvbeam_interp_e, vectors)
-            ipol = 1
+            ipol = 0
             print(ipol)
             beam_map_t = pyuvbeam_interp[0, 0, ipol, 0].real
             #beam_map_t = self.beam_dic[time_t]

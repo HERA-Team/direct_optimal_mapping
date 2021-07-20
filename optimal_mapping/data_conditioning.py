@@ -24,11 +24,13 @@ class DataConditioning:
         '''
         self.ifreq = ifreq
         self.ipol = ipol
-        uv_cp = copy.deepcopy(uv)
-        uv_cross = uv_cp.select(ant_str='cross', inplace=False)
+        #uv_cp = copy.deepcopy(uv)
+        #uv_cross = uv_cp.select(ant_str='cross', inplace=False)
+        uv_cross = uv.select(ant_str='cross', inplace=False)
         self.uv_1d = uv_cross.select(freq_chans=ifreq, polarizations=ipol, 
                                      inplace=False, keep_all_metadata=False)
-        uv_auto = uv_cp.select(ant_str='auto', inplace=False)
+        #uv_auto = uv_cp.select(ant_str='auto', inplace=False)
+        uv_auto = uv.select(ant_str='auto', inplace=False)
         self.uv_auto = uv_auto.select(freq_chans=ifreq, polarizations=ipol,
                                       inplace=False, keep_all_metadata=False)
         self.log = ['Init., freq. and pol. selected.',]

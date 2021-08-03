@@ -331,9 +331,9 @@ class OptMapping:
             #                                                  az_za_grid=False, freq_array= freq_array,
             #                                                  reuse_spline=True)
             #pyuvbeam_interp = self.pyuvbeam_efield_to_power(pyuvbeam_interp_e, vectors)
-            ipol = 0
-            print(ipol)
-            beam_map_t = pyuvbeam_interp[0, 0, ipol, 0].real
+            #ipol = 0
+            #print(ipol)
+            beam_map_t = pyuvbeam_interp[0, 0, 0, 0].real
             #beam_map_t = self.beam_dic[time_t]
             idx_time = np.where(self.uv.time_array == time_t)[0]
             for i in range(len(idx_time)):
@@ -456,9 +456,9 @@ class OptMapping:
             #                                                  az_za_grid=False, freq_array= freq_array,
             #                                                  reuse_spline=True)
             #pyuvbeam_interp = self.pyuvbeam_efield_to_power(pyuvbeam_interp_e, vectors)
-            ipol = 0
-            print(ipol)
-            beam_map_t = pyuvbeam_interp[0, 0, ipol, 0].real
+            #ipol = 0
+            #print(ipol)
+            beam_map_t = pyuvbeam_interp[0, 0, 0, 0].real
             #beam_map_t = self.beam_dic[time_t]
             idx_time = np.where(self.uv.time_array == time_t)[0]
             for i in range(len(idx_time)):

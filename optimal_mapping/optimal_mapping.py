@@ -175,8 +175,8 @@ class OptMapping:
         pyuvbeam = UVBeam()
         pyuvbeam.read_beamfits(beamfits_file)        
         pyuvbeam.efield_to_power()
-        pyuvbeam.select(polarizations=self.uv.polarization_array)
-        #pyuvbeam.select(polarizations=[-6,])
+        #pyuvbeam.select(polarizations=self.uv.polarization_array)
+        pyuvbeam.select(polarizations=[-6,])
         #print(pyuvbeam.polarization_array)
         pyuvbeam.peak_normalize()
         pyuvbeam.interpolation_function = 'az_za_simple'
@@ -308,8 +308,8 @@ class OptMapping:
         .a_mat: 2d matrix (complex64)
             a_matrix added in the attribute
         '''
-        a_mat = np.zeros((len(self.data), len(self.idx_psf_in)), dtype='float32')
-        beam_mat = np.zeros(a_mat.shape, dtype='float32')
+        a_mat = np.zeros((len(self.data), len(self.idx_psf_in)), dtype='float64')
+        beam_mat = np.zeros(a_mat.shape, dtype='float64')
         #self.set_beam_model(beam_model=self.feed_type)
         self.set_pyuvbeam(beam_model=self.feed_type)
         #print('Pyuvdata readin.')
@@ -348,7 +348,7 @@ class OptMapping:
                 else:
                     print('Flag on the %dth visibility is not recognized.'%irow)
         a_mat = ne.evaluate('exp(a_mat * 1j)')
-        a_mat = a_mat.astype('complex64')
+        a_mat = a_mat.astype('complex128')
         a_mat = np.matrix(a_mat)
         if apply_beam:
             a_mat = np.matrix(np.multiply(a_mat, beam_mat))
@@ -431,8 +431,8 @@ class OptMapping:
         .a_mat_ps: 2d matrix (complex64)
             a_matrix_ps added in the attribute
         '''
-        a_mat = np.zeros((len(self.data), len(self.idx_psf_in)+ps_radec.shape[0]), dtype='float32')
-        beam_mat = np.zeros(a_mat.shape, dtype='float32')
+        a_mat = np.zeros((len(self.data), len(self.idx_psf_in)+ps_radec.shape[0]), dtype='float64')
+        beam_mat = np.zeros(a_mat.shape, dtype='float64')
         #self.set_beam_model(beam_model=self.feed_type)
         self.set_pyuvbeam(beam_model=self.feed_type)
         #print('Pyuvdata readin.')
@@ -473,7 +473,7 @@ class OptMapping:
                 else:
                     print('Flag on the %dth visibility is not recognized.'%irow)
         a_mat = ne.evaluate('exp(a_mat * 1j)')
-        a_mat = a_mat.astype('complex64')
+        a_mat = a_mat.astype('complex128')
         a_mat = np.matrix(a_mat)
         if apply_beam:
             a_mat = np.matrix(np.multiply(a_mat, beam_mat))

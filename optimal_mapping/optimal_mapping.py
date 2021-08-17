@@ -170,8 +170,11 @@ class OptMapping:
             #print('Vivaldi beam simulation file is not set up yet.')
         elif beam_model == 'dipole':
             beamfits_file = '/nfs/ger/home/zhileixu/data/git_beam/HERA-Beams/NicolasFagnoniBeams/NF_HERA_Dipole_efield_beam_high-precision.fits'
+            #beamfits_file = '/nfs/ger/home/zhileixu/data/git_beam/cst_beam_files/fagnoni_high_precision_dipole/H19/'+\
+            #                'E-farfield-100ohm-50-250MHz-high-acc-ind-H19-port21/efield_dipole_H19-port21_high-precision_peak-norm.fits'
         else:
             print('Please provide correct beam model (either vivaldi or dipole)')
+        print('Beam file:', beamfits_file)
         pyuvbeam = UVBeam()
         pyuvbeam.read_beamfits(beamfits_file)        
         pyuvbeam.efield_to_power()
@@ -186,107 +189,109 @@ class OptMapping:
         self.pyuvbeam = pyuvbeam
         return
     
-    def pyuvbeam_efield_to_power(self, efield_data, basis_vector_array,
-                                 calc_cross_pols=True):
-    
-        Nfeeds = efield_data.shape[0]
-        Nfreqs = efield_data.shape[3]
-        Nsources = efield_data.shape[4]
+#    def pyuvbeam_efield_to_power(self, efield_data, basis_vector_array,
+#                                 calc_cross_pols=True):
+#    
+#        Nfeeds = efield_data.shape[0]
+#        Nfreqs = efield_data.shape[3]
+#        Nsources = efield_data.shape[4]
+#
+#        feed_pol_order = [(0, 0)]
+#        if Nfeeds > 1:
+#            feed_pol_order.append((1, 1))
+#
+#        if calc_cross_pols:
+#            Npols = Nfeeds ** 2
+#            if Nfeeds > 1:
+#                feed_pol_order.extend([(0, 1), (1, 0)])
+#        else:
+#            Npols = Nfeeds
+#
+#
+#        power_data = np.zeros((1, 1, Npols, Nfreqs, Nsources), dtype=np.complex128)
+#
+#
+#        for pol_i, pair in enumerate(feed_pol_order):
+#            for comp_i in range(2):
+#                power_data[0, :, pol_i] += (
+#                    (
+#                        efield_data[0, :, pair[0]]
+#                        * np.conj(efield_data[0, :, pair[1]])
+#                    )
+#                    * basis_vector_array[0, comp_i] ** 2
+#                    + (
+#                        efield_data[1, :, pair[0]]
+#                        * np.conj(efield_data[1, :, pair[1]])
+#                    )
+#                    * basis_vector_array[1, comp_i] ** 2
+#                    + (
+#                        efield_data[0, :, pair[0]]
+#                        * np.conj(efield_data[1, :, pair[1]])
+#                        + efield_data[1, :, pair[0]]
+#                        * np.conj(efield_data[0, :, pair[1]])
+#                    )
+#                    * (
+#                        basis_vector_array[0, comp_i]
+#                        * basis_vector_array[1, comp_i]
+#                    )
+#                )
+#
+#        power_data = np.real_if_close(power_data, tol=10)
+#
+#        return power_data
 
-        feed_pol_order = [(0, 0)]
-        if Nfeeds > 1:
-            feed_pol_order.append((1, 1))
-
-        if calc_cross_pols:
-            Npols = Nfeeds ** 2
-            if Nfeeds > 1:
-                feed_pol_order.extend([(0, 1), (1, 0)])
-        else:
-            Npols = Nfeeds
 
 
-        power_data = np.zeros((1, 1, Npols, Nfreqs, Nsources), dtype=np.complex128)
-
-
-        for pol_i, pair in enumerate(feed_pol_order):
-            for comp_i in range(2):
-                power_data[0, :, pol_i] += (
-                    (
-                        efield_data[0, :, pair[0]]
-                        * np.conj(efield_data[0, :, pair[1]])
-                    )
-                    * basis_vector_array[0, comp_i] ** 2
-                    + (
-                        efield_data[1, :, pair[0]]
-                        * np.conj(efield_data[1, :, pair[1]])
-                    )
-                    * basis_vector_array[1, comp_i] ** 2
-                    + (
-                        efield_data[0, :, pair[0]]
-                        * np.conj(efield_data[1, :, pair[1]])
-                        + efield_data[1, :, pair[0]]
-                        * np.conj(efield_data[0, :, pair[1]])
-                    )
-                    * (
-                        basis_vector_array[0, comp_i]
-                        * basis_vector_array[1, comp_i]
-                    )
-                )
-
-        power_data = np.real_if_close(power_data, tol=10)
-
-        return power_data
-        
-    def set_beam_model(self, beam_model, interp_method='grid'):
-        '''Beam interpolation model set up with RectSphereBivariantSpline
-        beam power is used as sqrt(col4**2 + col6**2)
-        
-        Input:
-        ------
-        beam_model: str ('vivaldi' or 'dipole')
-            beam model used for interpolation
-        interp_method: str ('grid' or 'sphere')
-            Method used for interpolating the beam
-            'grid' -> RectBivariateSpline
-            'sphere' -> RectSphereBivariateSpline
-        
-        Output:
-        ------
-        None
-        
-        Attribute:
-        .beam_model: function
-            interpolation function for the beam
-        '''
-        # loading the beam file
-        if beam_model == 'vivaldi':
-            beam_file_folder = '/nfs/eor-14/d1/hera/beams/Vivaldi_1.8m-detailed_mecha_design-E-field-100ohm_load-Pol_X'
-        elif beam_model == 'dipole':
-            beam_file_folder = '/nfs/ger/proj/hera/beams/dipole_beams_Efield/HERA 4.9m - E-field'
-        else:
-            print('Please provide correct beam model (either vivaldi or dipole)')
-        ifreq = int(np.round(self.frequency/1e6))
-        beam_file = beam_file_folder+'/farfield (f=%d) [1].txt'%ifreq
-        beam_table = Table.read(beam_file, format='ascii', data_start=2)
-        #print(beam_model, 'is selected with', interp_method, 'interpolation method.')
-        beam_theta = np.radians(np.unique(beam_table['col1']))
-        beam_phi = np.radians(np.unique(beam_table['col2']))
-        power = beam_table['col4']**2 + beam_table['col6']**2
-        beam_data = power.reshape(len(beam_phi), len(beam_theta)).T
-        beam_data = beam_data/beam_data.max()
-        if interp_method == 'sphere':
-            epsilon = 1e-5
-            beam_theta[0] += epsilon
-            beam_theta[-1] -= epsilon
-            beam_model = RSBS(beam_theta, beam_phi, beam_data)
-        elif interp_method == 'grid':
-            beam_model = RBS(beam_theta, beam_phi, beam_data)
-        else:
-            print('Please provide a proper interpolation method, either sphere or grid.')
-        # Attribute assignment
-        self.beam_model = beam_model
-        
-        return
+#    def set_beam_model(self, beam_model, interp_method='grid'):
+#        '''Beam interpolation model set up with RectSphereBivariantSpline
+#        beam power is used as sqrt(col4**2 + col6**2)
+#        
+#        Input:
+#        ------
+#        beam_model: str ('vivaldi' or 'dipole')
+#            beam model used for interpolation
+#        interp_method: str ('grid' or 'sphere')
+#            Method used for interpolating the beam
+#            'grid' -> RectBivariateSpline
+#            'sphere' -> RectSphereBivariateSpline
+#        
+#        Output:
+#        ------
+#        None
+#        
+#        Attribute:
+#        .beam_model: function
+#            interpolation function for the beam
+#        '''
+#        # loading the beam file
+#        if beam_model == 'vivaldi':
+#            beam_file_folder = '/nfs/eor-14/d1/hera/beams/Vivaldi_1.8m-detailed_mecha_design-E-field-100ohm_load-Pol_X'
+#        elif beam_model == 'dipole':
+#            beam_file_folder = '/nfs/ger/proj/hera/beams/dipole_beams_Efield/HERA 4.9m - E-field'
+#        else:
+#            print('Please provide correct beam model (either vivaldi or dipole)')
+#        ifreq = int(np.round(self.frequency/1e6))
+#        beam_file = beam_file_folder+'/farfield (f=%d) [1].txt'%ifreq
+#        beam_table = Table.read(beam_file, format='ascii', data_start=2)
+#        #print(beam_model, 'is selected with', interp_method, 'interpolation method.')
+#        beam_theta = np.radians(np.unique(beam_table['col1']))
+#        beam_phi = np.radians(np.unique(beam_table['col2']))
+#        power = beam_table['col4']**2 + beam_table['col6']**2
+#        beam_data = power.reshape(len(beam_phi), len(beam_theta)).T
+#        beam_data = beam_data/beam_data.max()
+#        if interp_method == 'sphere':
+#            epsilon = 1e-5
+#            beam_theta[0] += epsilon
+#            beam_theta[-1] -= epsilon
+#            beam_model = RSBS(beam_theta, beam_phi, beam_data)
+#        elif interp_method == 'grid':
+#            beam_model = RBS(beam_theta, beam_phi, beam_data)
+#        else:
+#            print('Please provide a proper interpolation method, either sphere or grid.')
+#        # Attribute assignment
+#        self.beam_model = beam_model
+#        
+#        return
 
     def set_a_mat(self, uvw_sign=1, apply_beam=True):
         '''Calculating A matrix, covering the range defined by K_psf
@@ -338,10 +343,10 @@ class OptMapping:
             idx_time = np.where(self.uv.time_array == time_t)[0]
             for i in range(len(idx_time)):
                 irow = idx_time[i]
-                a_mat[irow] = uvw_sign*2*np.pi/self.wavelength*np.matmul(np.matrix(self.uv.uvw_array[irow].astype(np.float32)),
-                                                                         np.matrix(lmn_t.astype(np.float32)))
+                a_mat[irow] = uvw_sign*2*np.pi/self.wavelength*np.matmul(np.matrix(self.uv.uvw_array[irow].astype(np.float64)),
+                                                                         np.matrix(lmn_t.astype(np.float64)))
                 if self.flag[irow] == False:
-                    beam_mat[irow] = beam_map_t.astype(np.float32)
+                    beam_mat[irow] = beam_map_t.astype(np.float64)
                 elif self.flag[irow] == True:
                     beam_mat[irow] = np.zeros(beam_mat.shape[1])
                     print('%dth visibility is flagged.'%irow)

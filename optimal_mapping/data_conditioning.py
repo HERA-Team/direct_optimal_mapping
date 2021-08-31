@@ -78,6 +78,9 @@ class DataConditioning:
                                inplace=False, keep_all_metadata=False)
         self.uvn = self.uvn.select(blt_inds=idx_t, 
                                    inplace=False, keep_all_metadata=False)
+        idx_t = np.where(self.uv_auto.flag_array==False)[0]
+        self.uv_auto = self.uv_auto.select(blt_inds=idx_t, 
+                                           inplace=False, keep_all_metadata=False)
         self.log.append('Flag removed.')
         return self.uv_1d
         

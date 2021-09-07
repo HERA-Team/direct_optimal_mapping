@@ -576,23 +576,17 @@ class OptMapping:
             self.k_facet = np.zeros( (self.idx_facet_in.size, self.idx_psf_in.size) )
             self.k_facet[np.arange(self.idx_facet_in.size), 
                          np.searchsorted(self.idx_psf_in, self.idx_facet_in)] = 1
-        p_mat1 = np.matmul(self.k_facet, self.a_mat.H)
-        p_mat2 = np.matmul(self.inv_noise_mat, self.a_mat)
-        p_mat = np.matmul(p_mat1, p_mat2)
-        p_mat = np.real(p_mat)
-        p_mat = p_mat/self.norm_factor
-        #normalizatoin factor set up
-        k_facet_transpose = np.matrix(self.k_facet.T)
-        p_square = np.matmul(p_mat, k_facet_transpose) 
-        p_diag = np.diag(p_square)
-        #del inv_noise_mat, k_facet, p_mat1, p_mat2
-        del k_facet_transpose, p_mat1, p_mat2
+        _idx = np.searchsorted(self.idx_psf_in, self.idx_facet_in) #Equivalent to Finding K_facet
+        p_mat1 = np.conjugate(self.a_mat.T)[_idx] #Equivalent to K_facet@a_mat.H
+        p_mat2 = np.diag(self.inv_noise_mat)[:, None]*self.a_mat 
+        #Equivalent to inv_noise_mat@a_mat, assuming diagonal noise matrix
+
+        self.p_mat = np.real(np.matmul(p_mat1, p_mat2))/self.norm_factor
+        self.p_square = p_mat[:, _idx]
+        self.p_diag = np.diag(p_square)
+        del p_mat1, p_mat2
         
-        #attribute assignment
-        self.p_mat = p_mat
-        self.p_diag = p_diag
-        self.p_square = p_square
-        return p_mat, p_diag, p_square
+        return self.p_mat, self.p_diag, self.p_square
     
     def set_p_mat_ps(self, facet_radius_deg=7):
         '''Calculating P matrix with stand-alone point sources, 

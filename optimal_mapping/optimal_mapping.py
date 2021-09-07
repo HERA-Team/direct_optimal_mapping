@@ -99,6 +99,8 @@ class OptMapping:
         aa = AltAz(location=self.hera_site, obstime=obs_time)
         if self.equinox == 'J2000':
             c = SkyCoord(ra=ra, dec=dec, unit='radian', frame=TETE(obstime=self.equinox))
+            #c = SkyCoord(ra=ra, dec=dec, unit='radian', frame='icrs')
+            #print('ICRS')
         elif self.equinox == 'Current':
             c = SkyCoord(ra=ra, dec=dec, unit='radian', frame=TETE(obstime=obs_time))
         else:
@@ -588,7 +590,7 @@ class OptMapping:
         #attribute assignment
         self.p_mat_ps = p_mat_ps
         self.p_diag_ps = p_diag_ps
-        self.p_square_ps = p_square
+        self.p_square = p_square
         return p_mat_ps, p_diag_ps
         
     

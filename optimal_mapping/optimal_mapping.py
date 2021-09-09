@@ -180,8 +180,8 @@ class OptMapping:
         pyuvbeam = UVBeam()
         pyuvbeam.read_beamfits(beamfits_file)        
         pyuvbeam.efield_to_power()
-        #pyuvbeam.select(polarizations=self.uv.polarization_array)
-        pyuvbeam.select(polarizations=[-6,])
+        pyuvbeam.select(polarizations=self.uv.polarization_array)
+        #pyuvbeam.select(polarizations=[-6,])
         #print(pyuvbeam.polarization_array)
         pyuvbeam.peak_normalize()
         pyuvbeam.interpolation_function = 'az_za_simple'
@@ -307,12 +307,12 @@ class OptMapping:
         
         Output:
         ------
-        a_mat: 2d matrix (complex64)
+        a_mat: 2d matrix (complex128)
             a_matrix (Nvis X Npsf) from the given observation
 
         Attribute:
         ------
-        .a_mat: 2d matrix (complex64)
+        .a_mat: 2d matrix (complex128)
             a_matrix added in the attribute
         '''
         a_mat = np.zeros((len(self.data), len(self.idx_psf_in)), dtype='float64')
@@ -330,7 +330,8 @@ class OptMapping:
                               np.cos(alt_t)*np.cos(az_t), 
                               np.sin(alt_t)])
             #beam_map_t = self.beam_model(np.pi/2. - alt_t, az_t, grid=False)
-            pyuvbeam_interp,_ = self.pyuvbeam.interp(az_array=az_t, za_array=np.pi/2. - alt_t, 
+            pyuvbeam_interp,_ = self.pyuvbeam.interp(az_array=np.mod(np.pi/2. - az_t, 2*np.pi), 
+                                                     za_array=np.pi/2. - alt_t, 
                                                      az_za_grid=False, freq_array= freq_array,
                                                      reuse_spline=True) 
             #print('efield interpolation...')
@@ -430,12 +431,12 @@ class OptMapping:
 
         Output:
         ------
-        a_mat_ps: 2d matrix (complex64)
+        a_mat_ps: 2d matrix (complex128)
             a_matrix (Nvis X (Npsf+Nps)) from the given observation
         
         Attribute:
         ------
-        .a_mat_ps: 2d matrix (complex64)
+        .a_mat_ps: 2d matrix (complex128)
             a_matrix_ps added in the attribute
         '''
         a_mat = np.zeros((len(self.data), len(self.idx_psf_in)+ps_radec.shape[0]), dtype='float64')
@@ -455,7 +456,8 @@ class OptMapping:
                               np.cos(alt_t)*np.cos(az_t), 
                               np.sin(alt_t)])
             #beam_map_t = self.beam_model(np.pi/2. - alt_t, az_t, grid=False)
-            pyuvbeam_interp,_ = self.pyuvbeam.interp(az_array=az_t, za_array=np.pi/2. - alt_t, 
+            pyuvbeam_interp,_ = self.pyuvbeam.interp(az_array=np.mod(np.pi/2. - az_t, 2*np.pi), 
+                                                     za_array=np.pi/2. - alt_t, 
                                                      az_za_grid=False, freq_array= freq_array,
                                                      reuse_spline=True)
             #print('efield interpolation')
@@ -470,10 +472,10 @@ class OptMapping:
             idx_time = np.where(self.uv.time_array == time_t)[0]
             for i in range(len(idx_time)):
                 irow = idx_time[i]
-                a_mat[irow] = uvw_sign*2*np.pi/self.wavelength*np.matmul(np.matrix(self.uv.uvw_array[irow].astype(np.float32)),
-                                                                         np.matrix(lmn_t.astype(np.float32)))
+                a_mat[irow] = uvw_sign*2*np.pi/self.wavelength*np.matmul(np.matrix(self.uv.uvw_array[irow].astype(np.float64)),
+                                                                         np.matrix(lmn_t.astype(np.float64)))
                 if self.flag[irow] == False:
-                    beam_mat[irow] = beam_map_t.astype(np.float32)
+                    beam_mat[irow] = beam_map_t.astype(np.float64)
                 elif self.flag[irow] == True:
                     beam_mat[irow] = np.zeros(beam_mat.shape[1])
                     print('%dth visibility is flagged.'%irow)
@@ -510,18 +512,18 @@ class OptMapping:
         
         Output:
         ------
-        p_mat: 2d matrix (complex64) n_k_facet X n_k_psf
+        p_mat: 2d matrix (complex128) n_k_facet X n_k_psf
             p_matrix from the given observation
-        p_diag: 1d array (complex64)
+        p_diag: 1d array (complex128)
             normalization array for the map within the facet
         
         Attribute:
         ------
-        .p_mat: 2d matrix (complex64)
+        .p_mat: 2d matrix (complex128)
             p_matrix from the given observation as an attribute
-        .p_diag: 1d array (complex64)
+        .p_diag: 1d array (complex128)
             normalization array for the map within the facet
-        .p_square: 2d matrix (complex64)
+        .p_square: 2d matrix (complex128)
             square p matrix containing only the facet pixels on 
             both dimensions
         '''
@@ -556,16 +558,16 @@ class OptMapping:
         
         Output:
         ------
-        p_mat_ps: 2d matrix (complex64) n_k_facet X (n_k_psf + n_ps)
+        p_mat_ps: 2d matrix (complex128) n_k_facet X (n_k_psf + n_ps)
             p_matrix_ps from the given observation
         
         Attribute:
         ------
-        .p_mat_ps: 2d matrix (complex64)
+        .p_mat_ps: 2d matrix (complex128)
             p_matrix_ps from the given observation as an attribute
-        .p_diag_ps: 1d array (complex64)
+        .p_diag_ps: 1d array (complex128)
             normalization array for the map within the facet
-        .p_square_ps: 2d matrix (complex64)
+        .p_square_ps: 2d matrix (complex128)
             square p matrix containing only the facet pixels on 
             both dimensions
         '''

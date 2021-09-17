@@ -573,9 +573,9 @@ class OptMapping:
             self.set_k_facet(radius_deg=facet_radius_deg, calc_k=True)
         else:
             self.idx_facet_in = facet_idx
-            self.k_facet = np.zeros( (self.idx_facet_in.size, self.idx_psf_in.size) )
-            self.k_facet[np.arange(self.idx_facet_in.size), 
-                         np.searchsorted(self.idx_psf_in, self.idx_facet_in)] = 1
+            #self.k_facet = np.zeros( (self.idx_facet_in.size, self.idx_psf_in.size) )
+            #self.k_facet[np.arange(self.idx_facet_in.size), 
+            #             np.searchsorted(self.idx_psf_in, self.idx_facet_in)] = 1
         _idx = np.searchsorted(self.idx_psf_in, self.idx_facet_in) #Equivalent to Finding K_facet
         p_mat1 = np.conjugate(self.a_mat.T)[_idx] #Equivalent to K_facet@a_mat.H
         p_mat2 = np.diag(self.inv_noise_mat)[:, None]*self.a_mat 

@@ -356,8 +356,8 @@ class OptMapping:
         .a_mat: 2d matrix (complex128)
             a_matrix added in the attribute
         '''
-        a_mat = np.zeros((len(self.data), len(self.idx_psf_in)), dtype='float64')
-        beam_mat = np.zeros(a_mat.shape, dtype='float64')
+        self.a_mat = np.zeros((len(self.data), len(self.idx_psf_in)), dtype='float64')
+        beam_mat = np.zeros(self.a_mat.shape, dtype='float64')
         #self.set_beam_model(beam_model=self.feed_type)
         self.set_pyuvbeam(beam_model=self.feed_type)
         #print('Pyuvdata readin.')
@@ -387,7 +387,7 @@ class OptMapping:
             idx_time = np.where(self.uv.time_array == time_t)[0]
             for i in range(len(idx_time)):
                 irow = idx_time[i]
-                a_mat[irow] = uvw_sign*2*np.pi/self.wavelength*np.matmul(np.matrix(self.uv.uvw_array[irow].astype(np.float64)),
+                self.a_mat[irow] = uvw_sign*2*np.pi/self.wavelength*np.matmul(np.matrix(self.uv.uvw_array[irow].astype(np.float64)),
                                                                          np.matrix(lmn_t.astype(np.float64)))
                 if self.flag[irow] == False:
                     beam_mat[irow] = beam_map_t.astype(np.float64)
@@ -396,13 +396,14 @@ class OptMapping:
                     print('%dth visibility is flagged.'%irow)
                 else:
                     print('Flag on the %dth visibility is not recognized.'%irow)
-        a_mat = ne.evaluate('exp(a_mat * 1j)')
-        a_mat = a_mat.astype('complex128')
-        a_mat = np.matrix(a_mat)
+        
+        self.a_mat = ne.evaluate('exp(x * 1j)', global_dict={'x':self.a_mat})
+        self.a_mat = self.a_mat.astype('complex128')
+        #a_mat = np.matrix(a_mat)
         if apply_beam:
-            a_mat = np.matrix(np.multiply(a_mat, beam_mat))
-        self.a_mat = a_mat
-        return a_mat
+            self.a_mat = np.multiply(self.a_mat, beam_mat)
+        #self.a_mat = a_mat
+        return 
     
     def beam_interp_onecore(self, time, pix):
         '''Calculating the phase for the pixels within PSF at a given time
@@ -573,20 +574,19 @@ class OptMapping:
             self.set_k_facet(radius_deg=facet_radius_deg, calc_k=True)
         else:
             self.idx_facet_in = facet_idx
-            #self.k_facet = np.zeros( (self.idx_facet_in.size, self.idx_psf_in.size) )
-            #self.k_facet[np.arange(self.idx_facet_in.size), 
-            #             np.searchsorted(self.idx_psf_in, self.idx_facet_in)] = 1
+
         _idx = np.searchsorted(self.idx_psf_in, self.idx_facet_in) #Equivalent to Finding K_facet
         p_mat1 = np.conjugate(self.a_mat.T)[_idx] #Equivalent to K_facet@a_mat.H
         p_mat2 = np.diag(self.inv_noise_mat)[:, None]*self.a_mat 
         #Equivalent to inv_noise_mat@a_mat, assuming diagonal noise matrix
 
         self.p_mat = np.real(np.matmul(p_mat1, p_mat2))/self.norm_factor
-        self.p_square = p_mat[:, _idx]
-        self.p_diag = np.diag(p_square)
         del p_mat1, p_mat2
+
+        self.p_square = self.p_mat[:, _idx]
+        self.p_diag = np.diag(self.p_square)
         
-        return self.p_mat, self.p_diag, self.p_square
+        return
     
     def set_p_mat_ps(self, facet_radius_deg=7):
         '''Calculating P matrix with stand-alone point sources, 

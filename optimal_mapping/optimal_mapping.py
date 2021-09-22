@@ -15,6 +15,8 @@ from scipy.interpolate import SmoothSphereBivariateSpline as SSBS
 from scipy.interpolate import RectSphereBivariateSpline as RSBS
 from scipy.interpolate import RectBivariateSpline as RBS
 
+import pixel_selection
+
 class OptMapping:
     '''Optimal Mapping Object
     '''
@@ -26,13 +28,14 @@ class OptMapping:
         ------
         uv: pyuvdata object
             UVData data in the pyuvdata format, data_array only has the blt dimension
-        nside: integar
+        nside: int
             nside of the healpix map
         epoch: str
             epoch of the map, can be either 'J2000' or 'Current'
         feed: str
             feed type 'dipole' or 'vivaldi'. Default is None, and feed type is determined by
             the observation date
+
         Return
         ------
         None        
@@ -56,9 +59,8 @@ class OptMapping:
                 self.feed_type = 'vivaldi'
         else:
             self.feed_type = feed
-
         print('RA/DEC in the epoch of %s, with %s beam used.'%(self.equinox, self.feed_type))
-        
+
         theta, phi = hp.pix2ang(nside, range(self.npix))
         self.ra = phi
         self.dec = np.pi/2. - theta
@@ -110,7 +112,6 @@ class OptMapping:
         
         return az, alt
         
-    
     def set_k_psf(self, radius_deg, calc_k=False):
         '''Function to set up the K_psf matrix. K_psf selects
         healpix from the entire sky to the regions within a 
@@ -140,6 +141,46 @@ class OptMapping:
         psf_radius = np.radians(radius_deg)
         self.idx_psf_out = np.where((np.pi/2 - self.alt) > psf_radius)[0]
         self.idx_psf_in = np.where((np.pi/2 - self.alt) < psf_radius)[0]
+        if calc_k:
+            k_full = np.diag(np.ones(self.npix, dtype=bool))
+            k_psf = np.delete(k_full, idx_psf_out, axis=0).T
+            del k_full
+            self.k_psf = k_psf
+            return k_psf
+        else:
+            return
+
+    def set_psf_by_idx(self, idx_psf_in=None, calc_k=False):
+        '''Set up the K_psf matrix by passing idices. 
+        
+        Input:
+        ------
+        idx_psf_idx: array-like int
+            Healpix idices of the psf region for the map. Default is the union of horizon during
+            the entire observation according to uv
+        calc_k: boolean
+            whether calculating K_psf
+            
+        Output:
+        ------
+        k_psf: 2d array (boolean) (if calc_k=True)
+            Npsf X Npix array 
+            
+        Attributes:
+        ------
+        .k_psf_in: 1d array (int)
+            healpix map indices within the PSF
+        .k_psf_out: 1d array (int)
+            healpix map indices outside of the PSF
+        .k_psf: 2d array (bool), if calc_k=True
+            matrix turning the full map into psf-included map
+        '''
+        if idx_psf_in is None:
+            self.idx_psf_in = pixel_selection.set_psf_idx(nside, self.lsts.min(), self.lsts.max(), radius=90)
+        else:
+            assert idx_psf_in.max() <= self.npix, "PSF indices out of range."
+            self.idx_psf_in = idx_psf_in
+        self.idx_psf_out = np.arange(self.npix)[~np.in1d(np.arange(self.npix), self.idx_psf_in)]
         if calc_k:
             k_full = np.diag(np.ones(self.npix, dtype=bool))
             k_psf = np.delete(k_full, idx_psf_out, axis=0).T
@@ -315,8 +356,8 @@ class OptMapping:
         .a_mat: 2d matrix (complex128)
             a_matrix added in the attribute
         '''
-        a_mat = np.zeros((len(self.data), len(self.idx_psf_in)), dtype='float64')
-        beam_mat = np.zeros(a_mat.shape, dtype='float64')
+        self.a_mat = np.zeros((len(self.data), len(self.idx_psf_in)), dtype='float64')
+        beam_mat = np.zeros(self.a_mat.shape, dtype='float64')
         #self.set_beam_model(beam_model=self.feed_type)
         self.set_pyuvbeam(beam_model=self.feed_type)
         #print('Pyuvdata readin.')
@@ -346,7 +387,7 @@ class OptMapping:
             idx_time = np.where(self.uv.time_array == time_t)[0]
             for i in range(len(idx_time)):
                 irow = idx_time[i]
-                a_mat[irow] = uvw_sign*2*np.pi/self.wavelength*np.matmul(np.matrix(self.uv.uvw_array[irow].astype(np.float64)),
+                self.a_mat[irow] = uvw_sign*2*np.pi/self.wavelength*np.matmul(np.matrix(self.uv.uvw_array[irow].astype(np.float64)),
                                                                          np.matrix(lmn_t.astype(np.float64)))
                 if self.flag[irow] == False:
                     beam_mat[irow] = beam_map_t.astype(np.float64)
@@ -355,13 +396,14 @@ class OptMapping:
                     print('%dth visibility is flagged.'%irow)
                 else:
                     print('Flag on the %dth visibility is not recognized.'%irow)
-        a_mat = ne.evaluate('exp(a_mat * 1j)')
-        a_mat = a_mat.astype('complex128')
-        a_mat = np.matrix(a_mat)
+        
+        self.a_mat = ne.evaluate('exp(x * 1j)', global_dict={'x':self.a_mat})
+        self.a_mat = self.a_mat.astype('complex128')
+        #a_mat = np.matrix(a_mat)
         if apply_beam:
-            a_mat = np.matrix(np.multiply(a_mat, beam_mat))
-        self.a_mat = a_mat
-        return a_mat
+            self.a_mat = np.multiply(self.a_mat, beam_mat)
+        #self.a_mat = a_mat
+        return 
     
     def beam_interp_onecore(self, time, pix):
         '''Calculating the phase for the pixels within PSF at a given time
@@ -502,7 +544,7 @@ class OptMapping:
 
         return inv_noise_mat
     
-    def set_p_mat(self, facet_radius_deg=7):
+    def set_p_mat(self, facet_radius_deg=7, facet_idx=None):
         '''Calculating P matrix, covering the range defined by K_psf,
         projectin to the range defined by K_facet
         
@@ -528,24 +570,23 @@ class OptMapping:
             both dimensions
         '''
         #p_matrix set up
-        k_facet = np.matrix(self.set_k_facet(radius_deg=facet_radius_deg, calc_k=True))
-        p_mat1 = np.matmul(k_facet, self.a_mat.H)
-        p_mat2 = np.matmul(self.inv_noise_mat, self.a_mat)
-        p_mat = np.matmul(p_mat1, p_mat2)
-        p_mat = np.matrix(np.real(p_mat))
-        p_mat = p_mat/self.norm_factor
-        #normalizatoin factor set up
-        k_facet_transpose = np.matrix(k_facet.T)
-        p_square = np.matmul(p_mat, k_facet_transpose) 
-        p_diag = np.diag(p_square)
-        #del inv_noise_mat, k_facet, p_mat1, p_mat2
-        del k_facet, p_mat1, p_mat2
+        if facet_idx is None:
+            self.set_k_facet(radius_deg=facet_radius_deg, calc_k=True)
+        else:
+            self.idx_facet_in = facet_idx
+
+        _idx = np.searchsorted(self.idx_psf_in, self.idx_facet_in) #Equivalent to Finding K_facet
+        p_mat1 = np.conjugate(self.a_mat.T)[_idx] #Equivalent to K_facet@a_mat.H
+        p_mat2 = np.diag(self.inv_noise_mat)[:, None]*self.a_mat 
+        #Equivalent to inv_noise_mat@a_mat, assuming diagonal noise matrix
+
+        self.p_mat = np.real(np.matmul(p_mat1, p_mat2))/self.norm_factor
+        del p_mat1, p_mat2
+
+        self.p_square = self.p_mat[:, _idx]
+        self.p_diag = np.diag(self.p_square)
         
-        #attribute assignment
-        self.p_mat = p_mat
-        self.p_diag = p_diag
-        self.p_square = p_square
-        return p_mat, p_diag, p_square
+        return
     
     def set_p_mat_ps(self, facet_radius_deg=7):
         '''Calculating P matrix with stand-alone point sources, 
@@ -595,7 +636,6 @@ class OptMapping:
         self.p_square = p_square
         return p_mat_ps, p_diag_ps
         
-    
     def set_k_facet(self, radius_deg, calc_k=False):
         '''Calculating the K_facet matrix
         
@@ -630,4 +670,4 @@ class OptMapping:
             self.k_facet = k_facet
             return k_facet
         else:
-            return
+            return    

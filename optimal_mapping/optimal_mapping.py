@@ -77,6 +77,7 @@ class OptMapping:
         self.data = np.expand_dims(data, axis=1)
         self.flag = np.expand_dims(flag, axis=1)
         self.nvis = len(data)
+
         return
 
     def _radec2azalt(self, ra, dec, time):
@@ -212,9 +213,9 @@ class OptMapping:
             'efield_farfield_Vivaldi_pos_0.0_0.0_0.0_0.0_0.0_160_180MHz_high_precision_0.125MHz_simplified_model.beamfits'
             #print('Vivaldi beam simulation file is not set up yet.')
         elif beam_model == 'dipole':
-            beamfits_file = '/nfs/ger/home/zhileixu/data/git_beam/HERA-Beams/NicolasFagnoniBeams/NF_HERA_Dipole_efield_beam_high-precision.fits'
-            #beamfits_file = '/nfs/ger/home/zhileixu/data/git_beam/cst_beam_files/fagnoni_high_precision_dipole/H19/'+\
-            #                'E-farfield-100ohm-50-250MHz-high-acc-ind-H19-port21/efield_dipole_H19-port21_high-precision_peak-norm.fits'
+            beamfits_file = '/nfs/esc/hera/zhileixu/git_beam/HERA-Beams/NicolasFagnoniBeams/NF_HERA_Dipole_efield_beam_high-precision.fits'
+            #beamfits_file = '/nfs/esc/hera/zhileixu/git_beam/cst_beam_files/fagnoni_high_precision_dipole/H19/'+\
+            #                'E-farfield-100ohm-50-250MHz-high-acc-ind-H19-port21/efield_dipole_H19-port21_high-precision_peak-norm.fits'            
         else:
             print('Please provide correct beam model (either vivaldi or dipole)')
         print('Beam file:', beamfits_file)
@@ -353,11 +354,8 @@ class OptMapping:
         '''
         self.a_mat = np.zeros((len(self.data), len(self.idx_psf_in)), dtype='float64')
         beam_mat = np.zeros(self.a_mat.shape, dtype='float64')
-        #self.set_beam_model(beam_model=self.feed_type)
         self.set_pyuvbeam(beam_model=self.feed_type)
-        #print('Pyuvdata readin.')
         freq_array = np.array([self.frequency,])
-        #self.set_beam_interp('hp')
         for time_t in np.unique(self.uv.time_array):
             az_t, alt_t = self._radec2azalt(self.ra[self.idx_psf_in],
                                             self.dec[self.idx_psf_in],
@@ -365,36 +363,18 @@ class OptMapping:
             lmn_t = np.array([np.cos(alt_t)*np.sin(az_t), 
                               np.cos(alt_t)*np.cos(az_t), 
                               np.sin(alt_t)])
-            #beam_map_t = self.beam_model(np.pi/2. - alt_t, az_t, grid=False)
             pyuvbeam_interp,_ = self.pyuvbeam.interp(az_array=np.mod(np.pi/2. - az_t, 2*np.pi), 
                                                      za_array=np.pi/2. - alt_t, 
                                                      az_za_grid=False, freq_array= freq_array,
                                                      reuse_spline=True) 
-            #print('efield interpolation...')
-            #pyuvbeam_interp_e, vectors = self.pyuvbeam.interp(az_array=az_t, za_array=np.pi/2. - alt_t, 
-            #                                                  az_za_grid=False, freq_array= freq_array,
-            #                                                  reuse_spline=True)
-            #pyuvbeam_interp = self.pyuvbeam_efield_to_power(pyuvbeam_interp_e, vectors)
-            #ipol = 0
-            #print(ipol)
             beam_map_t = pyuvbeam_interp[0, 0, 0, 0].real
-            #beam_map_t = self.beam_dic[time_t]
             idx_time = np.where(self.uv.time_array == time_t)[0]
-            for i in range(len(idx_time)):
-                irow = idx_time[i]
-                self.a_mat[irow] = uvw_sign*2*np.pi/self.wavelength*\
-                                   np.matmul(np.matrix(self.uv.uvw_array[irow].astype(np.float64)), 
-                                             np.matrix(lmn_t.astype(np.float64)))
-                if self.flag[irow] == False:
-                    beam_mat[irow] = beam_map_t.astype(np.float64)
-                elif self.flag[irow] == True:
-                    beam_mat[irow] = np.zeros(beam_mat.shape[1])
-                    print('%dth visibility is flagged.'%irow)
-                else:
-                    print('Flag on the %dth visibility is not recognized.'%irow)
-        
+            self.a_mat[idx_time] = uvw_sign*2*np.pi/self.wavelength*(self.uv.uvw_array[idx_time]@lmn_t)
+            beam_mat[idx_time] = np.tile(beam_map_t, idx_time.size).reshape(idx_time.size, -1)
+            
         self.a_mat = ne.evaluate('exp(A * 1j)', global_dict={'A':self.a_mat})
         if apply_beam:
+            beam_mat[self.flag.flatten()] = 0
             self.a_mat = np.multiply(self.a_mat, beam_mat)
 
         return 
@@ -475,13 +455,10 @@ class OptMapping:
         '''
         self.a_mat_ps = np.zeros((len(self.data), len(self.idx_psf_in)+ps_radec.shape[0]), dtype='float64')
         beam_mat = np.zeros(self.a_mat_ps.shape, dtype='float64')
-        #self.set_beam_model(beam_model=self.feed_type)
         self.set_pyuvbeam(beam_model=self.feed_type)
-        #print('Pyuvdata readin.')
         freq_array = np.array([self.frequency,])
         self.ra_ps = ps_radec[:, 0]
         self.dec_ps = ps_radec[:, 1]
-        #self.set_beam_interp('hp+ps')
         for time_t in np.unique(self.uv.time_array):
             az_t, alt_t = self._radec2azalt(np.concatenate((self.ra[self.idx_psf_in], self.ra_ps)),
                                             np.concatenate((self.dec[self.idx_psf_in], self.dec_ps)),
@@ -489,35 +466,19 @@ class OptMapping:
             lmn_t = np.array([np.cos(alt_t)*np.sin(az_t), 
                               np.cos(alt_t)*np.cos(az_t), 
                               np.sin(alt_t)])
-            #beam_map_t = self.beam_model(np.pi/2. - alt_t, az_t, grid=False)
             pyuvbeam_interp,_ = self.pyuvbeam.interp(az_array=np.mod(np.pi/2. - az_t, 2*np.pi), 
                                                      za_array=np.pi/2. - alt_t, 
                                                      az_za_grid=False, freq_array= freq_array,
                                                      reuse_spline=True)
-            #print('efield interpolation')
-            #pyuvbeam_interp_e, vectors = self.pyuvbeam.interp(az_array=az_t, za_array=np.pi/2. - alt_t, 
-            #                                                  az_za_grid=False, freq_array= freq_array,
-            #                                                  reuse_spline=True)
-            #pyuvbeam_interp = self.pyuvbeam_efield_to_power(pyuvbeam_interp_e, vectors)
-            #ipol = 0
-            #print(ipol)
             beam_map_t = pyuvbeam_interp[0, 0, 0, 0].real
-            #beam_map_t = self.beam_dic[time_t]
+            beam_map_t = pyuvbeam_interp[0, 0, 0, 0].real
             idx_time = np.where(self.uv.time_array == time_t)[0]
-            for i in range(len(idx_time)):
-                irow = idx_time[i]
-                self.a_mat_ps[irow] = uvw_sign*2*np.pi/self.wavelength*\
-                                      np.matmul(np.matrix(self.uv.uvw_array[irow].astype(np.float64)),
-                                                np.matrix(lmn_t.astype(np.float64)))
-                if self.flag[irow] == False:
-                    beam_mat[irow] = beam_map_t.astype(np.float64)
-                elif self.flag[irow] == True:
-                    beam_mat[irow] = np.zeros(beam_mat.shape[1])
-                    print('%dth visibility is flagged.'%irow)
-                else:
-                    print('Flag on the %dth visibility is not recognized.'%irow)
+            self.a_mat_ps[idx_time] = uvw_sign*2*np.pi/self.wavelength*(self.uv.uvw_array[idx_time]@lmn_t)
+            beam_mat[idx_time] = np.tile(beam_map_t, idx_time.size).reshape(idx_time.size, -1)
+
         self.a_mat_ps = ne.evaluate('exp(A * 1j)', global_dict={'A':self.a_mat_ps})
         if apply_beam:
+            beam_mat[self.flag.flatten()] = 0
             self.a_mat_ps = np.multiply(self.a_mat_ps, beam_mat)
         self.a_mat = self.a_mat_ps[:, :len(self.idx_psf_in)]
         return
@@ -566,7 +527,7 @@ class OptMapping:
             raise AttributeError('A matrix is not set up.')
 
         if facet_idx is None:
-            self.set_k_facet(radius_deg=facet_radius_deg, calc_k=True)
+            self.set_k_facet(radius_deg=facet_radius_deg, calc_k=False)
         else:
             self.idx_facet_in = facet_idx
 
@@ -614,7 +575,7 @@ class OptMapping:
             raise AttributeError('A matrix with point sources pixel is not set up.')
 
         if facet_idx is None:
-            self.set_k_facet(radius_deg=facet_radius_deg, calc_k=True)
+            self.set_k_facet(radius_deg=facet_radius_deg, calc_k=False)
         else:
             self.idx_facet_in = facet_idx
 

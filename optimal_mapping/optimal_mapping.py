@@ -77,6 +77,7 @@ class OptMapping:
         self.data = np.expand_dims(data, axis=1)
         self.flag = np.expand_dims(flag, axis=1)
         self.nvis = len(data)
+
         return
 
     def _radec2azalt(self, ra, dec, time):
@@ -214,7 +215,7 @@ class OptMapping:
         elif beam_model == 'dipole':
             beamfits_file = '/nfs/esc/hera/zhileixu/git_beam/HERA-Beams/NicolasFagnoniBeams/NF_HERA_Dipole_efield_beam_high-precision.fits'
             #beamfits_file = '/nfs/esc/hera/zhileixu/git_beam/cst_beam_files/fagnoni_high_precision_dipole/H19/'+\
-            #                'E-farfield-100ohm-50-250MHz-high-acc-ind-H19-port21/efield_dipole_H19-port21_high-precision_peak-norm.fits'
+            #                'E-farfield-100ohm-50-250MHz-high-acc-ind-H19-port21/efield_dipole_H19-port21_high-precision_peak-norm.fits'            
         else:
             print('Please provide correct beam model (either vivaldi or dipole)')
         print('Beam file:', beamfits_file)
@@ -242,22 +243,15 @@ class OptMapping:
         apply_beam: boolean
             Whether apply beam to the a matrix elements, default:true
         
-        Output:
-        ------
-        a_mat: 2d matrix (complex128)
-            a_matrix (Nvis X Npsf) from the given observation
-
         Attribute:
         ------
         .a_mat: 2d matrix (complex128)
-            a_matrix added in the attribute
+            a_matrix (Nvis X Npsf) from the given observation
         '''
         self.a_mat = np.zeros((len(self.data), len(self.idx_psf_in)), dtype='float64')
         beam_mat = np.zeros(self.a_mat.shape, dtype='float64')
         self.set_pyuvbeam(beam_model=self.feed_type)
-        #print('Pyuvdata readin.')
         freq_array = np.array([self.frequency,])
-        #self.set_beam_interp('hp')
         for time_t in np.unique(self.uv.time_array):
             az_t, alt_t = self._radec2azalt(self.ra[self.idx_psf_in],
                                             self.dec[self.idx_psf_in],
@@ -269,28 +263,16 @@ class OptMapping:
                                                      za_array=np.pi/2. - alt_t, 
                                                      az_za_grid=False, freq_array= freq_array,
                                                      reuse_spline=True) 
-            #print(ipol)
             beam_map_t = pyuvbeam_interp[0, 0, 0, 0].real
-            #beam_map_t = self.beam_dic[time_t]
             idx_time = np.where(self.uv.time_array == time_t)[0]
-            for i in range(len(idx_time)):
-                irow = idx_time[i]
-                self.a_mat[irow] = uvw_sign*2*np.pi/self.wavelength*np.matmul(np.matrix(self.uv.uvw_array[irow].astype(np.float64)),
-                                                                         np.matrix(lmn_t.astype(np.float64)))
-                if self.flag[irow] == False:
-                    beam_mat[irow] = beam_map_t.astype(np.float64)
-                elif self.flag[irow] == True:
-                    beam_mat[irow] = np.zeros(beam_mat.shape[1])
-                    print('%dth visibility is flagged.'%irow)
-                else:
-                    print('Flag on the %dth visibility is not recognized.'%irow)
-        
-        self.a_mat = ne.evaluate('exp(x * 1j)', global_dict={'x':self.a_mat})
-        self.a_mat = self.a_mat.astype('complex128')
-        #a_mat = np.matrix(a_mat)
+            self.a_mat[idx_time] = uvw_sign*2*np.pi/self.wavelength*(self.uv.uvw_array[idx_time]@lmn_t)
+            beam_mat[idx_time] = np.tile(beam_map_t, idx_time.size).reshape(idx_time.size, -1)
+            
+        self.a_mat = ne.evaluate('exp(A * 1j)', global_dict={'A':self.a_mat})
         if apply_beam:
+            beam_mat[self.flag.flatten()] = 0
             self.a_mat = np.multiply(self.a_mat, beam_mat)
-        #self.a_mat = a_mat
+
         return 
     
     def beam_interp_onecore(self, time, pix):
@@ -368,26 +350,21 @@ class OptMapping:
             uvw sign for the baseline calculation
         apply_beam: boolean
             Whether apply beam to the a matrix elements, default:true
-
-        Output:
-        ------
-        a_mat_ps: 2d matrix (complex128)
-            a_matrix (Nvis X (Npsf+Nps)) from the given observation
         
         Attribute:
         ------
         .a_mat_ps: 2d matrix (complex128)
-            a_matrix_ps added in the attribute
+            a_matrix (Nvis X (Npsf+Nps)) from the given observation
+        .a_mat: 2d matrix (complex128)
+            a_matrix (Nvis X Npsf) from the given observation
+            
         '''
-        a_mat = np.zeros((len(self.data), len(self.idx_psf_in)+ps_radec.shape[0]), dtype='float64')
-        beam_mat = np.zeros(a_mat.shape, dtype='float64')
-        #self.set_beam_model(beam_model=self.feed_type)
+        self.a_mat_ps = np.zeros((len(self.data), len(self.idx_psf_in)+ps_radec.shape[0]), dtype='float64')
+        beam_mat = np.zeros(self.a_mat_ps.shape, dtype='float64')
         self.set_pyuvbeam(beam_model=self.feed_type)
-        #print('Pyuvdata readin.')
         freq_array = np.array([self.frequency,])
         self.ra_ps = ps_radec[:, 0]
         self.dec_ps = ps_radec[:, 1]
-        #self.set_beam_interp('hp+ps')
         for time_t in np.unique(self.uv.time_array):
             az_t, alt_t = self._radec2azalt(np.concatenate((self.ra[self.idx_psf_in], self.ra_ps)),
                                             np.concatenate((self.dec[self.idx_psf_in], self.dec_ps)),
@@ -395,39 +372,22 @@ class OptMapping:
             lmn_t = np.array([np.cos(alt_t)*np.sin(az_t), 
                               np.cos(alt_t)*np.cos(az_t), 
                               np.sin(alt_t)])
-            #beam_map_t = self.beam_model(np.pi/2. - alt_t, az_t, grid=False)
             pyuvbeam_interp,_ = self.pyuvbeam.interp(az_array=np.mod(np.pi/2. - az_t, 2*np.pi), 
                                                      za_array=np.pi/2. - alt_t, 
                                                      az_za_grid=False, freq_array= freq_array,
                                                      reuse_spline=True)
-            #print('efield interpolation')
-            #pyuvbeam_interp_e, vectors = self.pyuvbeam.interp(az_array=az_t, za_array=np.pi/2. - alt_t, 
-            #                                                  az_za_grid=False, freq_array= freq_array,
-            #                                                  reuse_spline=True)
-            #pyuvbeam_interp = self.pyuvbeam_efield_to_power(pyuvbeam_interp_e, vectors)
-            #ipol = 0
-            #print(ipol)
             beam_map_t = pyuvbeam_interp[0, 0, 0, 0].real
-            #beam_map_t = self.beam_dic[time_t]
+            beam_map_t = pyuvbeam_interp[0, 0, 0, 0].real
             idx_time = np.where(self.uv.time_array == time_t)[0]
-            for i in range(len(idx_time)):
-                irow = idx_time[i]
-                a_mat[irow] = uvw_sign*2*np.pi/self.wavelength*np.matmul(np.matrix(self.uv.uvw_array[irow].astype(np.float64)),
-                                                                         np.matrix(lmn_t.astype(np.float64)))
-                if self.flag[irow] == False:
-                    beam_mat[irow] = beam_map_t.astype(np.float64)
-                elif self.flag[irow] == True:
-                    beam_mat[irow] = np.zeros(beam_mat.shape[1])
-                    print('%dth visibility is flagged.'%irow)
-                else:
-                    print('Flag on the %dth visibility is not recognized.'%irow)
-        a_mat = ne.evaluate('exp(a_mat * 1j)')
-        a_mat = a_mat.astype('complex128')
-        a_mat = np.matrix(a_mat)
+            self.a_mat_ps[idx_time] = uvw_sign*2*np.pi/self.wavelength*(self.uv.uvw_array[idx_time]@lmn_t)
+            beam_mat[idx_time] = np.tile(beam_map_t, idx_time.size).reshape(idx_time.size, -1)
+
+        self.a_mat_ps = ne.evaluate('exp(A * 1j)', global_dict={'A':self.a_mat_ps})
         if apply_beam:
-            a_mat = np.matrix(np.multiply(a_mat, beam_mat))
-        self.a_mat_ps = a_mat
-        return a_mat
+            beam_mat[self.flag.flatten()] = 0
+            self.a_mat_ps = np.multiply(self.a_mat_ps, beam_mat)
+        self.a_mat = self.a_mat_ps[:, :len(self.idx_psf_in)]
+        return
     
     def set_inv_noise_mat(self, uvn):
         '''Calculating the inverse noise matrix with auto-correlations
@@ -448,15 +408,16 @@ class OptMapping:
         
         Input:
         ------
-        None
+        facet_radius_deg: Size of the circular facet. Facet will be 
+            located around the zenith at the mean integration time
+            of the given pyuvdata object. Default radius is 7 deg.
+        facet_idx: User specified facet index. Can be obtained using
+            the pixel_selection module.
         
         Output:
         ------
-        p_mat: 2d matrix (complex128) n_k_facet X n_k_psf
-            p_matrix from the given observation
-        p_diag: 1d array (complex128)
-            normalization array for the map within the facet
-        
+        None
+
         Attribute:
         ------
         .p_mat: 2d matrix (complex128)
@@ -468,8 +429,11 @@ class OptMapping:
             both dimensions
         '''
         #p_matrix set up
+        if not hasattr(self, 'a_mat'):
+            raise AttributeError('A matrix is not set up.')
+
         if facet_idx is None:
-            self.set_k_facet(radius_deg=facet_radius_deg, calc_k=True)
+            self.set_k_facet(radius_deg=facet_radius_deg, calc_k=False)
         else:
             self.idx_facet_in = facet_idx
 
@@ -486,19 +450,22 @@ class OptMapping:
         
         return
     
-    def set_p_mat_ps(self, facet_radius_deg=7):
+    def set_p_mat_ps(self, facet_radius_deg=7, facet_idx=None):
         '''Calculating P matrix with stand-alone point sources, 
         covering the range defined by K_psf + point source pixels,
         projectin to the range defined by K_facet
         
         Input:
         ------
-        None
+        facet_radius_deg: Size of the circular facet. Facet will be 
+            located around the zenith at the mean integration time
+            of the given pyuvdata object. Default radius is 7 deg.
+        facet_idx: User specified facet index. Can be obtained using
+            the pixel_selection module.
         
         Output:
         ------
-        p_mat_ps: 2d matrix (complex128) n_k_facet X (n_k_psf + n_ps)
-            p_matrix_ps from the given observation
+        None
         
         Attribute:
         ------
@@ -511,28 +478,26 @@ class OptMapping:
             both dimensions
         '''
         if not hasattr(self, 'a_mat_ps'):
-            print('A matrix with point sources pixel is not set up, returning None.')
-            return
-        #p_matrix_ps set up
-        k_facet = np.matrix(self.set_k_facet(radius_deg=facet_radius_deg, calc_k=True))
-        p_mat1 = np.matmul(k_facet, self.a_mat.H)
-        p_mat2 = np.matmul(self.inv_noise_mat, self.a_mat_ps)
-        #p_mat2 = self.a_mat_ps
-        p_mat_ps = np.matmul(p_mat1, p_mat2)
-        p_mat_ps = np.matrix(np.real(p_mat_ps))
-        p_mat_ps = p_mat_ps/self.norm_factor
-        #normalization factor set up
-        k_facet_transpose = np.matrix(k_facet.T)
-        p_square = np.matmul(p_mat_ps[:, :len(self.idx_psf_in)], k_facet_transpose) 
-        p_diag_ps = np.diag(p_square)
-        #del inv_noise_mat, k_facet, k_facet_transpose, p_mat1, p_mat2
-        del k_facet, k_facet_transpose, p_mat1, p_mat2
+            raise AttributeError('A matrix with point sources pixel is not set up.')
+
+        if facet_idx is None:
+            self.set_k_facet(radius_deg=facet_radius_deg, calc_k=False)
+        else:
+            self.idx_facet_in = facet_idx
+
+        _idx = np.searchsorted(self.idx_psf_in, self.idx_facet_in) #Equivalent to Finding K_facet
+        p_mat1 = np.conjugate(self.a_mat.T)[_idx] 
+        #Equivalent to K_facet@a_mat.H. Note that discard the point source part
+        p_mat2 = np.diag(self.inv_noise_mat)[:, None]*self.a_mat_ps
+        #Equivalent to inv_noise_mat@a_mat, assuming diagonal noise matrix
+
+        self.p_mat_ps = np.real(np.matmul(p_mat1, p_mat2))/self.norm_factor
+        del p_mat1, p_mat2
+
+        self.p_square_ps = self.p_mat_ps[:, _idx]
+        self.p_diag_ps = np.diag(self.p_square_ps)
         
-        #attribute assignment
-        self.p_mat_ps = p_mat_ps
-        self.p_diag_ps = p_diag_ps
-        self.p_square = p_square
-        return p_mat_ps, p_diag_ps
+        return
         
     def set_k_facet(self, radius_deg, calc_k=False):
         '''Calculating the K_facet matrix

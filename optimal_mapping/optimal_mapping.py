@@ -233,110 +233,6 @@ class OptMapping:
         self.pyuvbeam = pyuvbeam
         return
     
-#    def pyuvbeam_efield_to_power(self, efield_data, basis_vector_array,
-#                                 calc_cross_pols=True):
-#    
-#        Nfeeds = efield_data.shape[0]
-#        Nfreqs = efield_data.shape[3]
-#        Nsources = efield_data.shape[4]
-#
-#        feed_pol_order = [(0, 0)]
-#        if Nfeeds > 1:
-#            feed_pol_order.append((1, 1))
-#
-#        if calc_cross_pols:
-#            Npols = Nfeeds ** 2
-#            if Nfeeds > 1:
-#                feed_pol_order.extend([(0, 1), (1, 0)])
-#        else:
-#            Npols = Nfeeds
-#
-#
-#        power_data = np.zeros((1, 1, Npols, Nfreqs, Nsources), dtype=np.complex128)
-#
-#
-#        for pol_i, pair in enumerate(feed_pol_order):
-#            for comp_i in range(2):
-#                power_data[0, :, pol_i] += (
-#                    (
-#                        efield_data[0, :, pair[0]]
-#                        * np.conj(efield_data[0, :, pair[1]])
-#                    )
-#                    * basis_vector_array[0, comp_i] ** 2
-#                    + (
-#                        efield_data[1, :, pair[0]]
-#                        * np.conj(efield_data[1, :, pair[1]])
-#                    )
-#                    * basis_vector_array[1, comp_i] ** 2
-#                    + (
-#                        efield_data[0, :, pair[0]]
-#                        * np.conj(efield_data[1, :, pair[1]])
-#                        + efield_data[1, :, pair[0]]
-#                        * np.conj(efield_data[0, :, pair[1]])
-#                    )
-#                    * (
-#                        basis_vector_array[0, comp_i]
-#                        * basis_vector_array[1, comp_i]
-#                    )
-#                )
-#
-#        power_data = np.real_if_close(power_data, tol=10)
-#
-#        return power_data
-
-
-
-#    def set_beam_model(self, beam_model, interp_method='grid'):
-#        '''Beam interpolation model set up with RectSphereBivariantSpline
-#        beam power is used as sqrt(col4**2 + col6**2)
-#        
-#        Input:
-#        ------
-#        beam_model: str ('vivaldi' or 'dipole')
-#            beam model used for interpolation
-#        interp_method: str ('grid' or 'sphere')
-#            Method used for interpolating the beam
-#            'grid' -> RectBivariateSpline
-#            'sphere' -> RectSphereBivariateSpline
-#        
-#        Output:
-#        ------
-#        None
-#        
-#        Attribute:
-#        .beam_model: function
-#            interpolation function for the beam
-#        '''
-#        # loading the beam file
-#        if beam_model == 'vivaldi':
-#            beam_file_folder = '/nfs/eor-14/d1/hera/beams/Vivaldi_1.8m-detailed_mecha_design-E-field-100ohm_load-Pol_X'
-#        elif beam_model == 'dipole':
-#            beam_file_folder = '/nfs/ger/proj/hera/beams/dipole_beams_Efield/HERA 4.9m - E-field'
-#        else:
-#            print('Please provide correct beam model (either vivaldi or dipole)')
-#        ifreq = int(np.round(self.frequency/1e6))
-#        beam_file = beam_file_folder+'/farfield (f=%d) [1].txt'%ifreq
-#        beam_table = Table.read(beam_file, format='ascii', data_start=2)
-#        #print(beam_model, 'is selected with', interp_method, 'interpolation method.')
-#        beam_theta = np.radians(np.unique(beam_table['col1']))
-#        beam_phi = np.radians(np.unique(beam_table['col2']))
-#        power = beam_table['col4']**2 + beam_table['col6']**2
-#        beam_data = power.reshape(len(beam_phi), len(beam_theta)).T
-#        beam_data = beam_data/beam_data.max()
-#        if interp_method == 'sphere':
-#            epsilon = 1e-5
-#            beam_theta[0] += epsilon
-#            beam_theta[-1] -= epsilon
-#            beam_model = RSBS(beam_theta, beam_phi, beam_data)
-#        elif interp_method == 'grid':
-#            beam_model = RBS(beam_theta, beam_phi, beam_data)
-#        else:
-#            print('Please provide a proper interpolation method, either sphere or grid.')
-#        # Attribute assignment
-#        self.beam_model = beam_model
-#        
-#        return
-
     def set_a_mat(self, uvw_sign=1, apply_beam=True):
         '''Calculating A matrix, covering the range defined by K_psf
         
@@ -381,6 +277,18 @@ class OptMapping:
     
     def beam_interp_onecore(self, time, pix):
         '''Calculating the phase for the pixels within PSF at a given time
+        Input
+        ------
+        time: float
+            JD of the observation time
+        pix: str
+            'hp' or 'hp+ps' meaning 'healpix' or 'healpix + point sources'
+        
+        Output
+        ------
+        beam_dic: dictionary
+            with the 'time' variable as the key and the interpolated beam 
+            as the content
         '''
         
         if pix == 'hp':
@@ -395,26 +303,25 @@ class OptMapping:
         lmn_t = np.array([np.cos(alt_t)*np.sin(az_t), 
                           np.cos(alt_t)*np.cos(az_t), 
                           np.sin(alt_t)])
-        #beam_map_t = self.beam_model(np.pi/2. - alt_t, az_t, grid=False)
-        #pyuvbeam_interp,_ = self.pyuvbeam.interp(az_array=az_t, za_array=np.pi/2. - alt_t, 
-        #                                         az_za_grid=False, freq_array= freq_array,
-        #                                         reuse_spline=True)
-        print(time, 'efield interpolation')
-        #pyuvbeam = self.set_pyuvbeam(beam_model=self.feed_type)
-        pyuvbeam_interp_e, vectors = self.pyuvbeam.interp(az_array=az_t, za_array=np.pi/2. - alt_t, 
-                                                          az_za_grid=False, freq_array= np.array([self.frequency,]),
-                                                          reuse_spline=True)
-        pyuvbeam_interp = self.pyuvbeam_efield_to_power(pyuvbeam_interp_e, vectors)
-        ipol = 1
-        beam_map_t = pyuvbeam_interp[0, 0, ipol, 0].real
+        pyuvbeam_interp, _ = self.pyuvbeam.interp(az_array=np.mod(np.pi/2. - az_t, 2*np.pi), 
+                                                  za_array=np.pi/2. - alt_t, 
+                                                  az_za_grid=False, freq_array= np.array([self.frequency,]),
+                                                  reuse_spline=True)
+        beam_map_t = pyuvbeam_interp[0, 0, 0, 0].real
         return {time: beam_map_t}
     
     def set_beam_interp(self, pix, ncores=10):
         '''Run the beam interpolation in parallel and store the result in a dictionary
-        
+        Input
+        ------
         pix: str
             'hp', or 'hp+ps'
+        ncores: int
+            Number of cores for the parallelization
         
+        Output
+        ------
+        None
         '''
         print(pix)
         self.set_pyuvbeam(beam_model=self.feed_type)
@@ -425,11 +332,10 @@ class OptMapping:
         results = pool.starmap(self.beam_interp_onecore, args)
         pool.close()
         pool.join()
-        beam_dic = {}
+        self.beam_dic = {}
         for dic_t in results:
-            beam_dic.update(dic_t)
-        self.beam_dic = beam_dic
-        return beam_dic
+            self.beam_dic.update(dic_t)
+        return 
         
     def set_a_mat_ps(self, ps_radec, uvw_sign=1, apply_beam=True):
         '''Calculating A matrix, covering the range defined by K_psf

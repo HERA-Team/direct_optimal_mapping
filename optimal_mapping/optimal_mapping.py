@@ -59,7 +59,7 @@ class OptMapping:
                 self.feed_type = 'vivaldi'
         else:
             self.feed_type = feed
-        print('RA/DEC in the epoch of %s, with %s beam used.'%(self.equinox, self.feed_type))
+        #print('RA/DEC in the epoch of %s, with %s beam used.'%(self.equinox, self.feed_type))
 
         theta, phi = hp.pix2ang(nside, range(self.npix))
         self.ra = phi
@@ -218,7 +218,7 @@ class OptMapping:
             #                'E-farfield-100ohm-50-250MHz-high-acc-ind-H19-port21/efield_dipole_H19-port21_high-precision_peak-norm.fits'            
         else:
             print('Please provide correct beam model (either vivaldi or dipole)')
-        print('Beam file:', beamfits_file)
+        #print('Beam file:', beamfits_file)
         pyuvbeam = UVBeam()
         pyuvbeam.read_beamfits(beamfits_file)        
         pyuvbeam.efield_to_power()
@@ -249,7 +249,7 @@ class OptMapping:
             a_matrix (Nvis X Npsf) from the given observation
         '''
         self.a_mat = np.zeros((len(self.data), len(self.idx_psf_in)), dtype='float64')
-        beam_mat = np.zeros(self.a_mat.shape, dtype='float64')
+        self.beam_mat = np.zeros(self.a_mat.shape, dtype='float64')
         self.set_pyuvbeam(beam_model=self.feed_type)
         freq_array = np.array([self.frequency,])
         for time_t in np.unique(self.uv.time_array):
@@ -266,12 +266,12 @@ class OptMapping:
             beam_map_t = pyuvbeam_interp[0, 0, 0, 0].real
             idx_time = np.where(self.uv.time_array == time_t)[0]
             self.a_mat[idx_time] = uvw_sign*2*np.pi/self.wavelength*(self.uv.uvw_array[idx_time]@lmn_t)
-            beam_mat[idx_time] = np.tile(beam_map_t, idx_time.size).reshape(idx_time.size, -1)
+            self.beam_mat[idx_time] = np.tile(beam_map_t, idx_time.size).reshape(idx_time.size, -1)
             
         self.a_mat = ne.evaluate('exp(A * 1j)', global_dict={'A':self.a_mat})
         if apply_beam:
-            beam_mat[self.flag.flatten()] = 0
-            self.a_mat = np.multiply(self.a_mat, beam_mat)
+            self.beam_mat[self.flag.flatten()] = 0
+            self.a_mat = np.multiply(self.a_mat, self.beam_mat)
 
         return 
     
@@ -360,7 +360,7 @@ class OptMapping:
             
         '''
         self.a_mat_ps = np.zeros((len(self.data), len(self.idx_psf_in)+ps_radec.shape[0]), dtype='float64')
-        beam_mat = np.zeros(self.a_mat_ps.shape, dtype='float64')
+        self.beam_mat = np.zeros(self.a_mat_ps.shape, dtype='float64')
         self.set_pyuvbeam(beam_model=self.feed_type)
         freq_array = np.array([self.frequency,])
         self.ra_ps = ps_radec[:, 0]
@@ -380,12 +380,12 @@ class OptMapping:
             beam_map_t = pyuvbeam_interp[0, 0, 0, 0].real
             idx_time = np.where(self.uv.time_array == time_t)[0]
             self.a_mat_ps[idx_time] = uvw_sign*2*np.pi/self.wavelength*(self.uv.uvw_array[idx_time]@lmn_t)
-            beam_mat[idx_time] = np.tile(beam_map_t, idx_time.size).reshape(idx_time.size, -1)
+            self.beam_mat[idx_time] = np.tile(beam_map_t, idx_time.size).reshape(idx_time.size, -1)
 
         self.a_mat_ps = ne.evaluate('exp(A * 1j)', global_dict={'A':self.a_mat_ps})
         if apply_beam:
-            beam_mat[self.flag.flatten()] = 0
-            self.a_mat_ps = np.multiply(self.a_mat_ps, beam_mat)
+            self.beam_mat[self.flag.flatten()] = 0
+            self.a_mat_ps = np.multiply(self.a_mat_ps, self.beam_mat)
         self.a_mat = self.a_mat_ps[:, :len(self.idx_psf_in)]
         return
     

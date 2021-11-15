@@ -442,7 +442,7 @@ class OptMapping:
         p_mat2 = np.diag(self.inv_noise_mat)[:, None]*self.a_mat 
         #Equivalent to inv_noise_mat@a_mat, assuming diagonal noise matrix
 
-        self.p_mat = np.real(np.matmul(p_mat1, p_mat2))/self.norm_factor
+        self.p_mat = np.real(np.matmul(p_mat1, p_mat2))
         del p_mat1, p_mat2
 
         self.p_square = self.p_mat[:, _idx]
@@ -491,7 +491,7 @@ class OptMapping:
         p_mat2 = np.diag(self.inv_noise_mat)[:, None]*self.a_mat_ps
         #Equivalent to inv_noise_mat@a_mat, assuming diagonal noise matrix
 
-        self.p_mat_ps = np.real(np.matmul(p_mat1, p_mat2))/self.norm_factor
+        self.p_mat_ps = np.real(np.matmul(p_mat1, p_mat2))
         del p_mat1, p_mat2
 
         self.p_square_ps = self.p_mat_ps[:, _idx]

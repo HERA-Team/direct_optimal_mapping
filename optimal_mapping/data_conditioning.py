@@ -73,7 +73,9 @@ class DataConditioning:
         if np.all(uv.flag_array):
             print('All data are flagged. Returning None.')
             return None
-        idx_t = np.where((self.uv_1d.flag_array | self.uvn.flag_array)==False)[0]
+        idx_t = np.where((self.uv_1d.flag_array==False) \
+                         & (self.uvn.flag_array==False) \
+                         & (self.uv_1d.nsample_array!=0))[0]
         self.uv_1d = uv.select(blt_inds=idx_t, 
                                inplace=False, keep_all_metadata=False)
         self.uvn = self.uvn.select(blt_inds=idx_t, 

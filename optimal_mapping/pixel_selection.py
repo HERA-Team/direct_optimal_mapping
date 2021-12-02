@@ -1,6 +1,8 @@
 import healpy as hp
 import numpy as np
 
+hera_dec = -30.721526120689507
+
 def set_facet_idx_disc(NSIDE, cen_pos, radius):
     '''Calculate the healpix indices of a circular facet centred at a given position
 
@@ -32,7 +34,6 @@ def set_facet_idx_disc(NSIDE, cen_pos, radius):
 
     return hp.query_disc(NSIDE, cen_vec, np.deg2rad(radius), inclusive = True)
 
-hera_dec = -30.721526120689507
 def set_psf_idx(NSIDE, start_lst, end_lst, radius = 90):
     '''Calculate the healpix indices of the combined PSF region for a given integation time
     ***Note: is only exact when the radius is set to be 90 deg
@@ -64,3 +65,33 @@ def set_psf_idx(NSIDE, start_lst, end_lst, radius = 90):
                             inclusive = True
     )
     return np.unique( np.concatenate((start_psf, end_psf)) )
+
+def set_sky_coverage(nside, lst_min, lst_max, radius, res=1/60.):
+    '''Calculating the sky coverage and return the healpix no.
+    
+    Input
+    ------
+    nside: int
+        nside of the HEALpix
+    lst_min, lst_max: float
+        min and max of the LST range for the sky coverage
+    radius: float
+        Radius around the center line (in radians)
+    res: float
+        resolution of advancing disks in the calculation (in deg)
+    
+    Output
+    ------
+    hp_idx: array
+        idx of the healpix for the sky coverage
+    '''
+    res = np.radians(res)
+    lst_ls = np.arange(lst_min, lst_max, res)
+    hp_sky_cover = np.zeros(hp.nside2npix(nside), dtype=np.bool8)
+    for lst_t in lst_ls:
+        ctr_vec = hp.ang2vec(np.degrees(lst_t),
+                             hera_dec,
+                             lonlat=True,)
+        hp_idx_t = hp.query_disc(nside, ctr_vec, radius, inclusive=True)
+        hp_sky_cover[hp_idx_t] = True
+    return np.where(hp_sky_cover)[0]

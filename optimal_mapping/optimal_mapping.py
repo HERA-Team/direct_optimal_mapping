@@ -72,8 +72,8 @@ class OptMapping:
         self.frequency = np.squeeze(self.uv.freq_array)
         self.wavelength = constants.c.value/self.frequency
                 
-        data = np.squeeze(self.uv.data_array)
-        flag = np.squeeze(self.uv.flag_array)
+        data = np.squeeze(self.uv.data_array, axis=(1, 2, 3))
+        flag = np.squeeze(self.uv.flag_array, axis=(1, 2, 3))
         self.data = np.expand_dims(data, axis=1)
         self.flag = np.expand_dims(flag, axis=1)
         self.nvis = len(data)
@@ -396,7 +396,7 @@ class OptMapping:
         uvn: pyuvdata
             pyuvdata object with estimated noise information
         '''
-        inv_noise_mat = np.diag(np.squeeze(uvn.data_array).real**(-2))
+        inv_noise_mat = np.diag(np.squeeze(uvn.data_array, axis=(1, 2, 3)).real**(-2))
         self.inv_noise_mat = inv_noise_mat
         self.norm_factor = np.sum(np.diag(inv_noise_mat))
 

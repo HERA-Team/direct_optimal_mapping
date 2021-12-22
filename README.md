@@ -84,7 +84,7 @@ attribute as the inverse N matrix. The A matrix is calculated within the range o
 Then the map can be generated with the data via:
 
 ```python
-hmap = np.matmul(np.matrix(opt_map.a_mat.H), np.matmul(opt_map.inv_noise_mat, np.matrix(opt_map.data)))
+hmap = np.matmul(np.conjugate(opt_map.a_mat.T), np.matmul(opt_map.inv_noise_mat, np.matrix(opt_map.data)))
 ```
 
 Please note that hmap only covers the area within the PSF. The calculated pixels are a subset of the full-sky healpix

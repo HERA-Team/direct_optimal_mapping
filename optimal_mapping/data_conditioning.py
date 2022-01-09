@@ -47,8 +47,11 @@ class DataConditioning:
             uvn.data_array[inds] = np.sqrt(self.uv_auto.get_data((bl[0], bl[0]), squeeze='none').real * \
                                            self.uv_auto.get_data((bl[1], bl[1]), squeeze='none').real) / radiometer
             # OR all flags
-            uvn.flag_array[inds] += self.uv_auto.get_flags((bl[0], bl[0]), squeeze='none') +\
-                                    self.uv_auto.get_flags((bl[1], bl[1]), squeeze='none')
+            neg_auto_flag = (self.uv_auto.get_data((bl[0], bl[0]), squeeze='none') < 0) +\
+                            (self.uv_auto.get_data((bl[1], bl[1]), squeeze='none') < 0)
+            auto_flag = self.uv_auto.get_flags((bl[0], bl[0]), squeeze='none') +\
+                        self.uv_auto.get_flags((bl[1], bl[1]), squeeze='none')
+            uvn.flag_array[inds] += auto_flag + neg_auto_flag
         self.uvn = uvn
         self.log.append('Noise calculated.')
         return uvn

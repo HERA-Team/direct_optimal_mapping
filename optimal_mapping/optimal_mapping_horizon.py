@@ -47,6 +47,7 @@ class OptMappingHorizon:
                                        lon=uv.telescope_location_lat_lon_alt_degrees[1]*u.deg,
                                        height=uv.telescope_location_lat_lon_alt_degrees[2]*u.m)
         
+        print('This is the test version of optimal_mapping_horizon.py')
         self.uv = uv
         self.hera_dec = self.uv.telescope_location_lat_lon_alt[0]
         self.lsts = np.unique(self.uv.lst_array)
@@ -239,22 +240,24 @@ class OptMappingHorizon:
         .beam_mat_horizon: 2d matrix (complex128)
             a_matrix with only the beam term considered (Nvis X Npsf)
         '''
-        self.a_mat_horizon = np.zeros((len(self.data),len(self.idx_psf_in)), dtype='float64')
-        self.beam_mat_horizon = np.zeros(self.a_mat_horizon.shape, dtype='float64')
+        #self.a_mat_horizon = np.zeros((len(self.data),len(self.idx_psf_in)), dtype='float64')
+        #self.a_mat_horizon = np.zeros((len(self.uv.uvw_array[:,0]),len(self.idx_psf_in)), dtype='float64')
+        #print('Created A-matrix array: ',self.a_mat_horizon.shape)
+        #self.beam_mat_horizon = np.zeros(self.a_mat_horizon.shape, dtype='float64')
         self.set_pyuvbeam(beam_model=self.feed_type)
         freq_array = np.array([self.frequency,])
 
-        self.az = self.az[self.idx_psf_in]
-        self.alt = self.alt[self.idx_psf_in]
-        #print('az shape after psf limit: ',self.az.shape)
-        #print('alt shape after psf limit: ',self.alt.shape)
+        self.az_mat = self.az[self.idx_psf_in]
+        self.alt_mat = self.alt[self.idx_psf_in]
+        print('az shape after psf limit: ',self.az_mat.shape)
+        print('alt shape after psf limit: ',self.alt_mat.shape)
         utimes=np.unique(self.uv.time_array)
         idx_t=np.where(self.uv.time_array==utimes[0])[0]
-        lmn = np.array([np.cos(self.alt)*np.sin(self.az), 
-                        np.cos(self.alt)*np.cos(self.az), 
-                        np.sin(self.alt)])
-        pyuvbeam_interp,_ = self.pyuvbeam.interp(az_array=np.mod(np.pi/2. - self.az, 2*np.pi), 
-                                                 za_array=np.pi/2. - self.alt, 
+        lmn = np.array([np.cos(self.alt_mat)*np.sin(self.az_mat), 
+                        np.cos(self.alt_mat)*np.cos(self.az_mat), 
+                        np.sin(self.alt_mat)])
+        pyuvbeam_interp,_ = self.pyuvbeam.interp(az_array=np.mod(np.pi/2. - self.az_mat, 2*np.pi), 
+                                                 za_array=np.pi/2. - self.alt_mat, 
                                                  az_za_grid=False, freq_array= freq_array,
                                                  reuse_spline=True) 
         beam_map_t = pyuvbeam_interp[0, 0, 0, 0].real

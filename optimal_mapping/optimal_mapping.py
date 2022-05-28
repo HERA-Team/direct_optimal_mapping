@@ -214,7 +214,7 @@ class OptMapping:
         if beam_model == 'vivaldi':
             beamfits_file = self.beam_folder+\
                             '/efield_farfield_Vivaldi_pos_0.0_0.0_0.0_0.0_0.0_160_180MHz_high_precision_0.125MHz_simplified_model.beamfits'
-            #print('Vivaldi beam simulation file is not set up yet.')
+            print('Vivaldi beam simulation file is not set up yet.')
         elif beam_model == 'dipole':
             beamfits_file = self.beam_folder+'/NF_HERA_Dipole_efield_beam_high-precision.fits'
             #beamfits_file = '/nfs/esc/hera/zhileixu/git_beam/cst_beam_files/fagnoni_high_precision_dipole/H19/'+\
@@ -226,7 +226,6 @@ class OptMapping:
         pyuvbeam.read_beamfits(beamfits_file)        
         pyuvbeam.efield_to_power()
         pyuvbeam.select(polarizations=self.uv.polarization_array)
-        #pyuvbeam.select(polarizations=[-6,])
         #print(pyuvbeam.polarization_array)
         pyuvbeam.peak_normalize()
         pyuvbeam.interpolation_function = 'az_za_simple'

@@ -221,7 +221,7 @@ class OptMapping:
             #                'E-farfield-100ohm-50-250MHz-high-acc-ind-H19-port21/efield_dipole_H19-port21_high-precision_peak-norm.fits'     
         else:
             print('Please provide correct beam model (either vivaldi or dipole)')
-        print('Beam file:', beamfits_file)
+        #print('Beam file:', beamfits_file)
         pyuvbeam = UVBeam()
         pyuvbeam.read_beamfits(beamfits_file)        
         pyuvbeam.efield_to_power()

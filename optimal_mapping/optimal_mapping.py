@@ -21,7 +21,8 @@ class OptMapping:
     '''Optimal Mapping Object
     '''
     
-    def __init__(self, uv, nside, epoch='J2000', feed=None):
+    def __init__(self, uv, nside, epoch='J2000', feed=None, 
+                 beam_folder='/nfs/esc/hera/zhileixu/git_beam/HERA-Beams/NicolasFagnoniBeams'):
         '''Init function for basic setup
          
         Input
@@ -35,6 +36,8 @@ class OptMapping:
         feed: str
             feed type 'dipole' or 'vivaldi'. Default is None, and feed type is determined by
             the observation date
+        beam_folder: str
+            folder of the simulated primary beam files
 
         Return
         ------
@@ -52,6 +55,7 @@ class OptMapping:
         self.lsts = np.unique(self.uv.lst_array)
         self.times = np.unique(uv.time_array)
         self.equinox = epoch
+        self.beam_folder = beam_folder
         if feed is None:
             if np.mean(self.times) < 2458362: #2018-09-01
                 self.feed_type = 'dipole'
@@ -208,17 +212,16 @@ class OptMapping:
         '''
         # loading the beamfits file
         if beam_model == 'vivaldi':
-            beamfits_file = '/nfs/esc/hera/HERA_beams/high_precision_runs/outputs/'+\
-            'cst_vivaldi_time_solver_simplified_master_Apr2021/uvbeam/'+\
-            'efield_farfield_Vivaldi_pos_0.0_0.0_0.0_0.0_0.0_160_180MHz_high_precision_0.125MHz_simplified_model.beamfits'
+            beamfits_file = self.beam_folder+\
+                            '/efield_farfield_Vivaldi_pos_0.0_0.0_0.0_0.0_0.0_160_180MHz_high_precision_0.125MHz_simplified_model.beamfits'
             #print('Vivaldi beam simulation file is not set up yet.')
         elif beam_model == 'dipole':
-            beamfits_file = '/nfs/esc/hera/zhileixu/git_beam/HERA-Beams/NicolasFagnoniBeams/NF_HERA_Dipole_efield_beam_high-precision.fits'
+            beamfits_file = self.beam_folder+'/NF_HERA_Dipole_efield_beam_high-precision.fits'
             #beamfits_file = '/nfs/esc/hera/zhileixu/git_beam/cst_beam_files/fagnoni_high_precision_dipole/H19/'+\
-            #                'E-farfield-100ohm-50-250MHz-high-acc-ind-H19-port21/efield_dipole_H19-port21_high-precision_peak-norm.fits'            
+            #                'E-farfield-100ohm-50-250MHz-high-acc-ind-H19-port21/efield_dipole_H19-port21_high-precision_peak-norm.fits'     
         else:
             print('Please provide correct beam model (either vivaldi or dipole)')
-        #print('Beam file:', beamfits_file)
+        print('Beam file:', beamfits_file)
         pyuvbeam = UVBeam()
         pyuvbeam.read_beamfits(beamfits_file)        
         pyuvbeam.efield_to_power()

@@ -3,6 +3,28 @@
 requires = ["setuptools>=46.1.0", "setuptools_scm[toml]>=5", "wheel"]
 build-backend = "setuptools.build_meta"
 
+[project]
+name = "direct_optimal_mapping"
+version = "1.0.0"
+description = "direct optimal mapping interferometric data"
+readme = "README.md"
+authors = [{ name = "Zhilei Xu et al.", email = "zhileixu@space.mit.edu" }]
+license = { file = "LICENSE" }
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+]
+keywords = ["Radio Astronomy", "Interferometer", "Cosmology"]
+dependencies = [
+    "pyuvdata",
+    "hera_cal",
+]
+# requires-python = ">=3.9"
+
+[project.urls]
+Homepage = "https://github.com/HERA-Team/direct_optimal_mapping"
+
 [tool.setuptools_scm]
 # See configuration details in https://github.com/pypa/setuptools_scm
 version_scheme = "no-guess-dev"

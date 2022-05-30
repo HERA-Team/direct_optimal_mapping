@@ -19,6 +19,7 @@ keywords = ["Radio Astronomy", "Interferometer", "Cosmology"]
 dependencies = [
     "pyuvdata",
     "hera_cal",
+    "numexpr",
 ]
 # requires-python = ">=3.9"
 

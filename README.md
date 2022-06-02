@@ -28,8 +28,8 @@ also calculate the point-spread matrix, aka P-matrix.
 To use the classes, the python script file should first be imported:
 
 ```python
-import optimal_mapping
-import data_conditioning
+from direct_optimal_mapping import optimal_mapping
+from direct_optimal_mapping import data_conditioning
 ```
 
 To initiate one instance, one can do:

@@ -1,4 +1,8 @@
 import sys
+from . import optimal_mapping
+from . import data_conditioning
+from . import pixel_selection
+from . import optimal_mapping_horizon
 
 if sys.version_info[:2] >= (3, 8):
     # TODO: Import directly (no need for conditional) when `python_requires = >= 3.8`

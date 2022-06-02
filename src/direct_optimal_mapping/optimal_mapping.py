@@ -15,7 +15,7 @@ from scipy.interpolate import SmoothSphereBivariateSpline as SSBS
 from scipy.interpolate import RectSphereBivariateSpline as RSBS
 from scipy.interpolate import RectBivariateSpline as RBS
 
-import pixel_selection
+from . import pixel_selection
 
 class OptMapping:
     '''Optimal Mapping Object

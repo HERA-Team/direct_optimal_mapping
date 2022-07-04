@@ -266,7 +266,8 @@ class OptMapping:
             pyuvbeam_interp,_ = self.pyuvbeam.interp(az_array=np.mod(np.pi/2. - az_t, 2*np.pi), 
                                                      za_array=np.pi/2. - alt_t, 
                                                      az_za_grid=False, freq_array= freq_array,
-                                                     reuse_spline=True) 
+                                                     reuse_spline=True, check_azza_domain=False)
+            print('check_azza_domain=False.')
             beam_map_t = pyuvbeam_interp[0, 0, 0, 0].real
             idx_time = np.where(self.uv.time_array == time_t)[0]
             self.a_mat[idx_time] = uvw_sign*2*np.pi/self.wavelength*(self.uv.uvw_array[idx_time]@lmn_t)
@@ -380,7 +381,8 @@ class OptMapping:
             pyuvbeam_interp,_ = self.pyuvbeam.interp(az_array=np.mod(np.pi/2. - az_t, 2*np.pi), 
                                                      za_array=np.pi/2. - alt_t, 
                                                      az_za_grid=False, freq_array= freq_array,
-                                                     reuse_spline=True)
+                                                     reuse_spline=True, check_azza_domain=False)
+            print('check_azza_domain=False.')
             beam_map_t = pyuvbeam_interp[0, 0, 0, 0].real
             beam_map_t = pyuvbeam_interp[0, 0, 0, 0].real
             idx_time = np.where(self.uv.time_array == time_t)[0]

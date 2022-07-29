@@ -1,6 +1,7 @@
 import numpy as np
 from astropy.cosmology import WMAP9 as cosmo
 import astropy.units as u
+from astropy.cosmology.units import littleh, with_H0
 import hera_pspec.conversions as conversions
 from uvtools import dspec
 
@@ -23,7 +24,7 @@ class PS_Calc:
         '''
         self.freq_mhz = data_cube_dic['freq_mhz']
         self.px_dic = data_cube_dic['px_dic']
-        self.data_cube = data_cube['data_cube']
+        self.data_cube = data_cube_dic['data_cube']
         
         return
     
@@ -44,16 +45,16 @@ class PS_Calc:
         '''
         self.redshift = 1420.406/self.freq_mhz - 1
         self.dist_cm = cosmo.comoving_distance(self.redshift)
-        self.dist_cm_h = dist_cm.to(u.Mpc/u.littleh, equivalencies=u.with_H0(cosmo.H0))
+        self.dist_cm_h = self.dist_cm.to(u.Mpc/littleh, equivalencies=with_H0(cosmo.H0))
 
         z_avg = np.mean(self.redshift)
-        freq_avg = np.mean(freq_mhz_arr)*1e6
+        freq_avg = np.mean(self.freq_mhz)*1e6
         cos_conversion = conversions.Cosmo_Conversions(Om_L=cosmo.Ode0, Om_b=cosmo.Ob0, Om_c=cosmo.Odm0, H0=cosmo.H0.value)
-        slope = beta*cos_conversion.dRperp_dtheta(z_avg)/(cos_conversion.dRpara_df(z_avg)*np.mean(freq_avg))
-        y_intercept = buffer*cos_conversion.tau_to_kpara(z_avg)
+        self.slope = beta*cos_conversion.dRperp_dtheta(z_avg)/(cos_conversion.dRpara_df(z_avg)*np.mean(freq_avg))
+        self.y_intercept = buffer*cos_conversion.tau_to_kpara(z_avg)
         
         self.nx, self.ny, self.nz = self.data_cube.shape
-        self.n_voxel = nx*ny*nz
+        self.n_voxel = self.nx*self.ny*self.nz
 
         dist_cm_h_avg = np.mean(self.dist_cm_h)
 
@@ -90,14 +91,15 @@ class PS_Calc:
 
         self.k_perp = np.sqrt(np.average(self.k_xx, axis=2)**2 + 
                               np.average(self.k_yy, axis=2)**2)
-        n_perp = max(nx//2, ny//2)
-        k_perp_edge = np.linspace(0, np.max(self.k_perp), n_perp+1)
+        self.k_para = self.kz[:self.nz//2]
+        n_perp = max(self.nx//2, self.ny//2)
+        self.k_perp_edge = np.linspace(0, np.max(self.k_perp), n_perp+1)
         self.ps2d = np.zeros((n_perp, self.nz))
-        for i in range(len(k_perp_edge)-1):
-            idx_t = np.where((self.k_perp > k_perp_edge[i]) & (self.k_perp < k_perp_edge[i+1]))
+        for i in range(len(self.k_perp_edge)-1):
+            idx_t = np.where((self.k_perp > self.k_perp_edge[i]) & (self.k_perp < self.k_perp_edge[i+1]))
             self.ps2d[i] = np.average(np.abs(self.fft3d[idx_t])**2, axis=0)/(self.n_voxel*self.voxel_volume)
         self.ps2d = self.ps2d[:, :self.nz//2]
-        
+        self.k_perp = self.k_perp_edge[:-1]
         return
         
         

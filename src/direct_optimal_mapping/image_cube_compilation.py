@@ -1,5 +1,8 @@
+import numpy as np
 import pickle
 from astropy import constants as const
+import re
+
 class ImgCube:
     '''Converting individual maps into an image cube,
     also convert the image cube into mK units
@@ -13,7 +16,7 @@ class ImgCube:
             self.syn_sa_dic = pickle.load(f_t)
         return
     
-    def image_cube_compilation(self):
+    def image_cube_calc(self):
         '''Image cube compilation
         '''
         assert len(self.files_n5) == len(self.files_n6), 'Pol-5 and Pol-6 do not have same number of maps.'
@@ -22,9 +25,9 @@ class ImgCube:
             file_n5_t = self.files_n5[i]
             file_n6_t = self.files_n6[i]
 
-            with open(files_n5_t, 'rb') as f_t:
+            with open(file_n5_t, 'rb') as f_t:
                 map_dic_n5 = pickle.load(f_t)
-            with open(files_n6_t, 'rb') as f_t:
+            with open(file_n6_t, 'rb') as f_t:
                 map_dic_n6 = pickle.load(f_t)
 
             freq_mhz = float(re.search('_(......)MHz', file_n5_t).group(1))
@@ -42,7 +45,7 @@ class ImgCube:
             map_n5_t = map_n5_t * jysr2mk
             map_n6_t = map_n6_t * jysr2mk
             if i == 0:
-                data_dic = {'px_dic':map_dic_pol1['px_dic']
+                data_dic = {'px_dic':map_dic_n5['px_dic']
                     }
                 img_cube_n5 = map_n5_t
                 img_cube_n6 = map_n6_t
@@ -51,7 +54,6 @@ class ImgCube:
                 img_cube_n5 = np.vstack((img_cube_n5, map_n5_t))
                 img_cube_n6 = np.vstack((img_cube_n6, map_n5_t))
                 freq_mhz_arr = np.append(freq_mhz_arr, freq_mhz)
-            print(freq_mhz_arr.shape, data_cube_pol1.shape)
         img_cube_n5 = img_cube_n5.squeeze().reshape(((-1, *map_dic_n5['px_dic']['ra_deg'].shape)))
         img_cube_n6 = img_cube_n6.squeeze().reshape(((-1, *map_dic_n6['px_dic']['ra_deg'].shape)))
         img_cube_n5 = np.moveaxis(img_cube_n5, 0, -1)

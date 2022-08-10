@@ -77,6 +77,7 @@ class PS_Calc:
         data_cube_tapered = self.data_cube * z_window[np.newaxis, np.newaxis, :]
         
         self.fft3d = self.voxel_volume*np.fft.fftn(data_cube_tapered)
+        self.ps3d = np.abs(self.fft3d)**2/(self.n_voxel*self.voxel_volume)
 
         return
     
@@ -100,10 +101,22 @@ class PS_Calc:
             self.ps2d[i] = np.average(np.abs(self.fft3d[idx_t])**2, axis=0)/(self.n_voxel*self.voxel_volume)
         self.ps2d = self.ps2d[:, :self.nz//2]
         self.k_perp = self.k_perp_edge[:-1]
+        
+        return
+    
+    def calc_ps1d(self, nbin=None):
+        '''Calculating 1d PS from the 3d PS
+        '''
+        if nbin == None:
+            nbin = self.nz//2
+        kr = np.sqrt(self.k_xx**2 + self.k_yy**2 + self.k_zz**2)
+        kr_edge = np.linspace(0, kr.max(), nbin+1)
+        ps1d = []
+        for i in range(nbin):
+            idx_t = np.where((kr > kr_edge[i]) & (kr < kr_edge[i+1]))
+            ps1d.append(np.average(self.ps3d[idx_t]))
+        self.kr = kr_edge[:-1] + np.mean(np.diff(kr_edge))/2.
+        self.ps1d = np.array(ps1d)
+        
         return
         
-        
-        
-        
-    
-    

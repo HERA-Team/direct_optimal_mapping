@@ -1,5 +1,7 @@
 This package provides a tool to map radio interferometric astronomical data
-following the direct optimal mapping philosophy (Tegmark 1997; Dillon et al. 2015). This package is specifically developed
+following the direct optimal mapping philosophy (Tegmark 1997; Dillon et al. 2015). 
+An accompanying paper is published for this method, Xu et al. 2022.
+URL: This package is specifically developed
 for the HERA project.
 
 Installation

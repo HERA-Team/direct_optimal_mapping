@@ -104,16 +104,30 @@ class PS_Calc:
         
         return
     
-    def calc_ps1d(self, nbin=None):
+    def calc_ps1d(self, nbin=None, avoid_fg=True):
         '''Calculating 1d PS from the 3d PS
+        Parameters
+        ----------
+        nbin: int or None
+            Number of 1d k-bin numbers. Default: None, using the bin number from nz
+        avoid_fg: bool
+            Avoid foreground or not, avoid the wedge + buffer (defined in set_cosmo_grid)
+        
         '''
         if nbin == None:
             nbin = self.nz//2
         kr = np.sqrt(self.k_xx**2 + self.k_yy**2 + self.k_zz**2)
-        kr_edge = np.linspace(0, kr.max(), nbin+1)
+        if avoid_fg == True:
+            k_perp = np.sqrt(self.k_xx**2 + self.k_yy**2)
+            fg_flag = self.k_zz > k_perp * self.slope + self.y_intercept
+            k_min = self.y_intercept
+        else:
+            fg_flag = np.ones(kr.shape, dtype='bool')
+            k_min = 0
+        kr_edge = np.linspace(k_min, kr.max(), nbin+1)
         ps1d = []
         for i in range(nbin):
-            idx_t = np.where((kr > kr_edge[i]) & (kr < kr_edge[i+1]))
+            idx_t = np.where((kr > kr_edge[i]) & (kr < kr_edge[i+1]) & fg_flag)
             ps1d.append(np.average(self.ps3d[idx_t]))
         self.kr = kr_edge[:-1] + np.mean(np.diff(kr_edge))/2.
         self.ps1d = np.array(ps1d)

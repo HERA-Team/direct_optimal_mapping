@@ -60,6 +60,7 @@ class ImgCube:
 
         data_dic['data_cube_pol-5'] = img_cube_n5
         data_dic['data_cube_pol-6'] = img_cube_n6
+        data_dic['data_cube_I'] = 0.5*(img_cube_n5 + img_cube_n6)
         data_dic['freq_mhz'] = freq_mhz_arr
         
         return data_dic
@@ -110,6 +111,7 @@ class ImgCube:
         
         cov_dic['p_mat_pol-5'] = p_mat_n5
         cov_dic['p_mat_pol-6'] = p_mat_n6
+        cov_dic['p_mat_I'] = 0.5*(p_mat_n5 + p_mat_n6)
         cov_dic['freq_mhz'] = freq_mhz_arr
         
         return cov_dic

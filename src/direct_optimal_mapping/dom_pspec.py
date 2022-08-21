@@ -9,22 +9,28 @@ class PS_Calc:
     '''Class to calculate power spectrum from direct opitmal
     mapping data cubes
     '''
-    def __init__(self, data_cube_dic):
+    def __init__(self, data_cube_dic1, data_cube_dic2=None):
         '''Initialization of the class
         
         Parameters
         ----------
-        data_cube_dic: dictionary
+        data_cube_dic1: dictionary
             dictionary containing the data cube brightness (mK)
             and the coordinates (ra/dec/freqency)
+        data_cube_dic2: dictionary or None
+            identical to data_cube_dic1 with independent noise propertie. 
+            If None, data_cube_dic2 = data_cube_dic1
         
         Returns
         -------
         
         '''
-        self.freq_mhz = data_cube_dic['freq_mhz']
-        self.px_dic = data_cube_dic['px_dic']
-        self.data_cube = data_cube_dic['data_cube']
+        if data_cube_dic2 == None:
+            data_cube_dic2 = data_cube_dic1
+        self.freq_mhz = data_cube_dic1['freq_mhz']
+        self.px_dic = data_cube_dic1['px_dic']
+        self.data_cube1 = data_cube_dic1['data_cube_I']
+        self.data_cube2 = data_cube_dic2['data_cube_I']
         
         return
     
@@ -53,7 +59,7 @@ class PS_Calc:
         self.slope = beta*cos_conversion.dRperp_dtheta(z_avg)/(cos_conversion.dRpara_df(z_avg)*np.mean(freq_avg))
         self.y_intercept = buffer*cos_conversion.tau_to_kpara(z_avg)
         
-        self.nx, self.ny, self.nz = self.data_cube.shape
+        self.nx, self.ny, self.nz = self.data_cube1.shape
         self.n_voxel = self.nx*self.ny*self.nz
 
         dist_cm_h_avg = np.mean(self.dist_cm_h)
@@ -74,11 +80,14 @@ class PS_Calc:
         along the frequency direction.
         '''
         z_window = dspec.gen_window(window, self.nz)
-        data_cube_tapered = self.data_cube * z_window[np.newaxis, np.newaxis, :]
+        data_cube1_tapered = self.data_cube1 * z_window[np.newaxis, np.newaxis, :]
+        data_cube2_tapered = self.data_cube2 * z_window[np.newaxis, np.newaxis, :]
         
-        self.fft3d = self.voxel_volume*np.fft.fftn(data_cube_tapered)
-        self.ps3d = np.abs(self.fft3d)**2/(self.n_voxel*self.voxel_volume)
-
+        self.fft3d1 = self.voxel_volume*np.fft.fftn(data_cube1_tapered)
+        self.fft3d2 = self.voxel_volume*np.fft.fftn(data_cube2_tapered)
+        self.ps3d = self.fft3d1.conjugate() * self.fft3d2 / (self.n_voxel*self.voxel_volume)
+        self.ps3d = self.ps3d.real
+        
         return
     
     def set_k_space(self):
@@ -98,7 +107,7 @@ class PS_Calc:
         self.ps2d = np.zeros((n_perp, self.nz))
         for i in range(len(self.k_perp_edge)-1):
             idx_t = np.where((self.k_perp > self.k_perp_edge[i]) & (self.k_perp < self.k_perp_edge[i+1]))
-            self.ps2d[i] = np.average(np.abs(self.fft3d[idx_t])**2, axis=0)/(self.n_voxel*self.voxel_volume)
+            self.ps2d[i] = np.average(self.ps3d[idx_t], axis=0)
         self.ps2d = self.ps2d[:, :self.nz//2]
         self.k_perp = self.k_perp_edge[:-1]
         
@@ -128,7 +137,7 @@ class PS_Calc:
         ps1d = []
         for i in range(nbin):
             idx_t = np.where((kr > kr_edge[i]) & (kr < kr_edge[i+1]) & fg_flag)
-            ps1d.append(np.average(self.ps3d[idx_t]))
+            ps1d.append(np.average(self.ps3d[idx_t]).value)
         self.kr = kr_edge[:-1] + np.mean(np.diff(kr_edge))/2.
         self.ps1d = np.array(ps1d)
         

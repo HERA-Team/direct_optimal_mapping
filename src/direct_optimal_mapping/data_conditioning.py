@@ -52,7 +52,7 @@ class DataConditioning:
         if len(idx_sel) == 0:
             return None
         self.uv_1d.select(blt_inds=idx_sel, inplace=True, keep_all_metadata=False)
-        self.log.append('bl selected.')
+        self.log.append('bl>%dm EW-projection selected.'%ew_proj)
         if 'Noise calculated.' in self.log:
             raise RuntimeError('bl selection should happen before noise calculation.')
         return

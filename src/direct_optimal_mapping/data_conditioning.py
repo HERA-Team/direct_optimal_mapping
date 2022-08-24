@@ -33,6 +33,30 @@ class DataConditioning:
                                       inplace=False, keep_all_metadata=False)
         self.log = ['Init., freq. and pol. selected.',]
 
+    def bl_selection(self, ew_proj=14.):
+        '''Selecting the baselines with ew projection greater than a certain value.
+        This selection is necessary because the cross-talk suppression does not work
+        for those baselines. Details can be found in Kern et al. 2019, 2020
+        
+        Parameters
+        ----------
+        ew_proj: float
+            baseline selection criteria, regarding to the projected EW distance.
+            Default: 14; Unit: meter
+        
+        Return
+        ------
+        None
+        '''
+        idx_sel = np.where(np.abs(self.uv_1d.uvw_array[:, 0]) > ew_proj)[0]
+        if len(idx_sel) == 0:
+            return None
+        self.uv_1d.select(blt_inds=idx_sel, inplace=True, keep_all_metadata=False)
+        self.log.append('bl selected.')
+        if 'Noise calculated.' in self.log:
+            raise RuntimeError('bl selection should happen before noise calculation.')
+        return
+        
     def noise_calc(self):
         '''Calculating noise from the autocorrelations
         '''

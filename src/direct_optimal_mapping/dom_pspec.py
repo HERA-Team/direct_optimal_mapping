@@ -135,11 +135,14 @@ class PS_Calc:
             k_min = 0
         kr_edge = np.linspace(k_min, kr.max(), nbin+1)
         ps1d = []
+        ps1d_var = []
         for i in range(nbin):
             idx_t = np.where((kr > kr_edge[i]) & (kr < kr_edge[i+1]) & fg_flag)
             ps1d.append(np.average(self.ps3d[idx_t]).value)
+            ps1d_var.append(np.mean(self.ps3d[idx_t].value**2) - np.mean(self.ps3d[idx_t].value)**2)
         self.kr = kr_edge[:-1] + np.mean(np.diff(kr_edge))/2.
         self.ps1d = np.array(ps1d)
+        self.ps1d_std = np.sqrt(ps1d_var)
         
         return
         

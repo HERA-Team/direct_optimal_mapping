@@ -88,6 +88,8 @@ class PS_Calc:
         self.ps3d = self.fft3d1.conjugate() * self.fft3d2 / (self.n_voxel*self.voxel_volume)
         self.ps3d = self.ps3d.real
         
+        self.kpara_window = np.fft.fftn(z_window)
+        
         return
     
     def set_k_space(self):

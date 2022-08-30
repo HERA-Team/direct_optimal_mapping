@@ -34,13 +34,13 @@ class ImgCube:
             print(i, freq_mhz, 'MHz', end=',')
             
             # normalization d calculation
-            d_diag = map_dic_n5['beam_weight_sum']*map_dic_n5['px_dic']['sa_sr'].flatten() # vis -> Jy/beam
-            d_diag = d_diag*self.syn_sa_dic['sa'][i] # Jy/beam -> Jy/sr
+            d_diag = 1/(map_dic_n5['beam_weight_sum'] * map_dic_n5['px_dic']['sa_sr'].flatten()) # vis -> Jy/beam
+            d_diag = d_diag/self.syn_sa_dic['sa'][i] # Jy/beam -> Jy/sr
             jysr2mk = 1e-26*const.c**2/2/(1e6*freq_mhz)**2/const.k_B*1e3
-            d_diag = d_diag / jysr2mk # Jy/sr -> mK
+            d_diag = d_diag * jysr2mk # Jy/sr -> mK
 
-            map_n5_t = map_dic_n5['map_sum'].squeeze()/d_diag
-            map_n6_t = map_dic_n6['map_sum'].squeeze()/d_diag
+            map_n5_t = map_dic_n5['map_sum'].squeeze() * d_diag
+            map_n6_t = map_dic_n6['map_sum'].squeeze() * d_diag
             
             if i == 0:
                 data_dic = {'px_dic':map_dic_n5['px_dic']}

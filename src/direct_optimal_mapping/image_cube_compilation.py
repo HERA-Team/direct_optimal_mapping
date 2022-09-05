@@ -46,13 +46,13 @@ class ImgCube:
             
             if i == 0:
                 data_dic = {'px_dic':map_dic_n5['px_dic']}
-                img_cube_n5 = map_n5_t
-                img_cube_n6 = map_n6_t
+                img_cube_n5 = map_n5_t.value
+                img_cube_n6 = map_n6_t.value
                 freq_mhz_arr = np.array([freq_mhz,])
                 self.d_diag = d_diag
             else:
-                img_cube_n5 = np.vstack((img_cube_n5, map_n5_t))
-                img_cube_n6 = np.vstack((img_cube_n6, map_n5_t))
+                img_cube_n5 = np.vstack((img_cube_n5, map_n5_t.value))
+                img_cube_n6 = np.vstack((img_cube_n6, map_n5_t.value))
                 freq_mhz_arr = np.append(freq_mhz_arr, freq_mhz)
                 self.d_diag = np.vstack((self.d_diag, d_diag))
         img_cube_n5 = img_cube_n5.squeeze().reshape(((-1, *map_dic_n5['px_dic']['ra_deg'].shape)))
@@ -64,8 +64,9 @@ class ImgCube:
         data_dic['data_cube_pol-6'] = img_cube_n6
         data_dic['data_cube_I'] = 0.5*(img_cube_n5 + img_cube_n6)
         data_dic['freq_mhz'] = freq_mhz_arr
+        self.data_dic = data_dic
         
-        return data_dic
+        return self.data_dic
     
     def p_mat_calc(self):
         '''Calculating p matrices
@@ -96,12 +97,12 @@ class ImgCube:
             
             if i == 0:
                 p_dic = {'px_dic':map_dic_n5['px_dic']}
-                p_mat_n5 = p_mat_n5_t[np.newaxis,...]
-                p_mat_n6 = p_mat_n6_t[np.newaxis,...]
+                p_mat_n5 = p_mat_n5_t[np.newaxis, ...].value
+                p_mat_n6 = p_mat_n6_t[np.newaxis, ...].value
                 freq_mhz_arr = np.array([freq_mhz,])
             else:
-                p_mat_n5 = np.concatenate((p_mat_n5, p_mat_n5_t[np.newaxis,...]), axis=0)
-                p_mat_n6 = np.concatenate((p_mat_n6, p_mat_n6_t[np.newaxis,...]), axis=0)
+                p_mat_n5 = np.concatenate((p_mat_n5, p_mat_n5_t[np.newaxis, ...].value), axis=0)
+                p_mat_n6 = np.concatenate((p_mat_n6, p_mat_n6_t[np.newaxis, ...].value), axis=0)
                 freq_mhz_arr = np.append(freq_mhz_arr, freq_mhz)
         
         p_dic['p_mat_pol-5'] = p_mat_n5

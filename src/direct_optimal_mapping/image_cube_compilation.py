@@ -20,7 +20,6 @@ class ImgCube:
         '''Image cube compilation
         '''
         assert len(self.files_n5) == len(self.files_n6), 'Pol-5 and Pol-6 do not have same number of maps.'
-        assert len(self.files_n5) == len(self.syn_sa_dic['sa']), 'File number and syn solid angle number do not match.'
         for i in range(len(self.files_n5)):
             file_n5_t = self.files_n5[i]
             file_n6_t = self.files_n6[i]
@@ -31,11 +30,13 @@ class ImgCube:
                 map_dic_n6 = pickle.load(f_t)
 
             freq_mhz = float(re.search('_(......)MHz', file_n5_t).group(1))
+            idx_t = np.where(freq_mhz == self.syn_sa_dic['freq_mhz'])[0]
+            syn_sa = self.syn_sa_dic['sa'][idx_t]
             print(i, freq_mhz, 'MHz', end=',')
             
             # normalization d calculation
             d_diag = 1/(map_dic_n5['beam_weight_sum'] * map_dic_n5['px_dic']['sa_sr'].flatten()) # vis -> Jy/beam
-            d_diag = d_diag/self.syn_sa_dic['sa'][i] # Jy/beam -> Jy/sr
+            d_diag = d_diag/syn_sa # Jy/beam -> Jy/sr
 #             d_diag = d_diag/map_dic_n5['px_dic']['sa_sr'].flatten() # Jy/beam -> Jy/sr
 #             print(self.syn_sa_dic['sa'][i], map_dic_n5['px_dic']['sa_sr'])
             jysr2mk = 1e-26*const.c**2/2/(1e6*freq_mhz)**2/const.k_B*1e3

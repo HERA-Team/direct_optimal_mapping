@@ -107,9 +107,11 @@ class PS_Calc:
         n_perp = max(self.nx//2, self.ny//2)
         self.k_perp_edge = np.linspace(0, np.max(self.k_perp), n_perp+1)
         self.ps2d = np.zeros((n_perp, self.nz))
+        self.ps2d_se = np.zeros((n_perp, self.nz))
         for i in range(len(self.k_perp_edge)-1):
             idx_t = np.where((self.k_perp > self.k_perp_edge[i]) & (self.k_perp < self.k_perp_edge[i+1]))
             self.ps2d[i] = np.average(self.ps3d[idx_t], axis=0)
+            self.ps2d_se[i] = np.std(self.ps3d[idx_t], axis=0)/np.sqrt(len(idx_t[0]))
         self.ps2d = self.ps2d[:, :self.nz//2]
         self.k_perp = self.k_perp_edge[:-1]
         

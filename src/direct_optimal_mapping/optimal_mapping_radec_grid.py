@@ -274,7 +274,7 @@ class OptMapping:
 
         return 
     
-    def set_inv_noise_mat(self, uvn, matrix=True):
+    def set_inv_noise_mat(self, uvn, matrix=True, norm=False):
         '''Calculating the inverse noise matrix with auto-correlations
         
         Parameters
@@ -284,6 +284,8 @@ class OptMapping:
         matrix: boolean
             'True' means the return matrix is a matrix; 'False' saves only
             the diagonal elements of the matrix, igonoring covariance
+        norm: boolean
+            whether normalize the sum of N^-1 diagonal terms
         '''
         if matrix:
             inv_noise_mat = np.diag(np.squeeze(uvn.data_array, axis=(1, 2, 3)).real**(-2))
@@ -291,8 +293,10 @@ class OptMapping:
         else:
             inv_noise_mat = np.squeeze(uvn.data_array, axis=(1, 2, 3)).real**(-2)          
             self.norm_factor = np.sum(inv_noise_mat)
+        if norm:
+            inv_noise_mat = inv_noise_mat/self.norm_factor
         self.inv_noise_mat = inv_noise_mat
-
+       
         return inv_noise_mat
     
     def set_p_mat(self):

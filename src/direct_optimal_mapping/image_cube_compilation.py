@@ -58,8 +58,8 @@ class ImgCube:
                 self.d_diag = np.vstack((self.d_diag, d_diag))
         img_cube_n5 = img_cube_n5.squeeze().reshape(((-1, *map_dic_n5['px_dic']['ra_deg'].shape)))
         img_cube_n6 = img_cube_n6.squeeze().reshape(((-1, *map_dic_n6['px_dic']['ra_deg'].shape)))
-        img_cube_n5 = np.moveaxis(img_cube_n5, 0, -1)
-        img_cube_n6 = np.moveaxis(img_cube_n6, 0, -1)
+#         img_cube_n5 = np.moveaxis(img_cube_n5, 0, -1)
+#         img_cube_n6 = np.moveaxis(img_cube_n6, 0, -1)
 
         data_dic['data_cube_pol-5'] = img_cube_n5
         data_dic['data_cube_pol-6'] = img_cube_n6

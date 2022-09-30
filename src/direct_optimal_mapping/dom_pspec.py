@@ -59,7 +59,7 @@ class PS_Calc:
         self.slope = beta*cos_conversion.dRperp_dtheta(z_avg)/(cos_conversion.dRpara_df(z_avg)*np.mean(freq_avg))
         self.y_intercept = buffer*cos_conversion.tau_to_kpara(z_avg)
         
-        self.nx, self.ny, self.nz = self.data_cube1.shape
+        self.nz, self.nx, self.ny = self.data_cube1.shape
         self.n_voxel = self.nx*self.ny*self.nz
 
         dist_cm_h_avg = np.mean(self.dist_cm_h)
@@ -80,8 +80,8 @@ class PS_Calc:
         along the frequency direction.
         '''
         z_window = dspec.gen_window(window, self.nz)
-        data_cube1_tapered = self.data_cube1 * z_window[np.newaxis, np.newaxis, :]
-        data_cube2_tapered = self.data_cube2 * z_window[np.newaxis, np.newaxis, :]
+        data_cube1_tapered = self.data_cube1 * z_window[:, np.newaxis, np.newaxis]
+        data_cube2_tapered = self.data_cube2 * z_window[:, np.newaxis, np.newaxis]
         
         self.fft3d1 = self.voxel_volume*np.fft.fftn(data_cube1_tapered)
         self.fft3d2 = self.voxel_volume*np.fft.fftn(data_cube2_tapered)
@@ -99,10 +99,12 @@ class PS_Calc:
         self.ky = np.fft.fftfreq(self.ny, d=self.res_y_mpch)*2*np.pi
         self.kz = np.fft.fftfreq(self.nz, d=self.res_z_mpch)*2*np.pi
 
-        self.k_xx, self.k_yy, self.k_zz = np.meshgrid(self.kx, self.ky, self.kz, indexing='ij')
+#         self.k_xx, self.k_yy, self.k_zz = np.meshgrid(self.kx, self.ky, self.kz, indexing='ij')
+        
+        self.k_zz, self.k_xx, self.k_yy = np.meshgrid(self.kz, self.kx, self.ky, indexing='ij')
 
-        self.k_perp = np.sqrt(np.average(self.k_xx, axis=2)**2 + 
-                              np.average(self.k_yy, axis=2)**2)
+        self.k_perp = np.sqrt(np.average(self.k_xx, axis=0)**2 + 
+                              np.average(self.k_yy, axis=0)**2)
         self.k_para = self.kz[:self.nz//2]
         n_perp = max(self.nx//2, self.ny//2)
         self.k_perp_edge = np.linspace(0, np.max(self.k_perp), n_perp+1)
@@ -110,8 +112,8 @@ class PS_Calc:
         self.ps2d_se = np.zeros((n_perp, self.nz))
         for i in range(len(self.k_perp_edge)-1):
             idx_t = np.where((self.k_perp > self.k_perp_edge[i]) & (self.k_perp < self.k_perp_edge[i+1]))
-            self.ps2d[i] = np.average(self.ps3d[idx_t], axis=0)
-            self.ps2d_se[i] = np.std(self.ps3d[idx_t], axis=0)/np.sqrt(len(idx_t[0]))
+            self.ps2d[i] = np.average(self.ps3d[:, idx_t[0], idx_t[1]], axis=1)
+            self.ps2d_se[i] = np.std(self.ps3d[:, idx_t[0], idx_t[1]], axis=1)/np.sqrt(len(idx_t[0]))
         self.ps2d = self.ps2d[:, :self.nz//2]
         self.k_perp = self.k_perp_edge[:-1]
         
@@ -143,8 +145,8 @@ class PS_Calc:
         n_sample = []
         for i in range(nbin):
             idx_t = np.where((kr > kr_edge[i]) & (kr < kr_edge[i+1]) & fg_flag)
-            ps1d.append(np.average(self.ps3d[idx_t]).value)
-            ps1d_var.append(np.mean(self.ps3d[idx_t].value**2) - np.mean(self.ps3d[idx_t].value)**2)
+            ps1d.append(np.average(self.ps3d[idx_t]))
+            ps1d_var.append(np.mean(self.ps3d[idx_t]**2) - np.mean(self.ps3d[idx_t])**2)
             n_sample.append(len(idx_t[0]))
         self.kr = kr_edge[:-1] + np.mean(np.diff(kr_edge))/2.
         self.ps1d = np.array(ps1d)

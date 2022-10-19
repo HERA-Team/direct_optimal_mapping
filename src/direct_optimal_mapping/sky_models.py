@@ -5,6 +5,35 @@ from astropy.table import Table
 from astropy import constants as const
 import copy
 
+def byrne21(freq_mhz, file='/nfs/esc/hera/sky_models/byrne182MHz_2020/diffuse_map.healfits'):
+    '''Generating the map in Byrne et al. 2021 at given frequency and nside512 in a HealPix 
+    fashion. The map is at 182MHz originally and will be extrapolated to a target frequency 
+    with the index of -2.61. The map is in mK.
+    
+    Parameters
+    ----------
+    freq_mhz: float
+        frequency in MHz
+    file: str
+        location of the map file
+        
+    Return
+    ------
+    hp_map: 1d array
+    '''
+    with fits.open(file) as contents:
+        nside_rb = contents[0].header['nside']
+        ordering = contents[0].header['ordering']
+        signal_data = contents[0].data
+        freq_rb = contents[0].header['crval2']  # Frequency in MHz
+        pixel_vals = contents[1].data['hpx_inds']
+    byrne21_intensity = np.zeros(hp.nside2npix(nside_rb))
+    byrne21_intensity[pixel_vals] = signal_data[:, 0, 0]
+    byrne21_intensity = hp.reorder(byrne21_intensity, n2r=True)
+    hp_map = byrne21_intensity * (freq_mhz/182)**(-2.61) # Mozdzen+16 index
+    
+    return nside_rb, hp_map
+
 def gleam_catalog(freq_mhz, nside, verbose=True):
     '''
     flux density is calculated from the GLEAM catalogs

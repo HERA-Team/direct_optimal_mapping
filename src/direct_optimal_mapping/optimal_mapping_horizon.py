@@ -237,7 +237,7 @@ class OptMappingHorizon:
         ------
         ..a_mat_horizon: 2d matrix (complex128)
             a_matrix (Nvis X Npsf) from the given observation
-        .beam_mat_horizon: 2d matrix (complex128)
+        .beam_mat_horizon: 2d matrix (float64)
             a_matrix with only the beam term considered (Nvis X Npsf)
         '''
         self.set_pyuvbeam(beam_model=self.feed_type)

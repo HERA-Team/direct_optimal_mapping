@@ -241,14 +241,15 @@ class OptMapping:
         ---------
         .a_mat: 2d matrix (complex128)
             a_matrix (Nvis X Npsf) from the given observation
-        .beam_mat: 2d matrix (complex128)
+        .beam_mat: 2d matrix (float64)
             a_matrix with only the beam term considered (Nvis X Npsf)
         '''
         self.phase_mat = np.zeros((self.nvis, self.npx), dtype='float64')
         self.beam_mat = np.zeros(self.phase_mat.shape, dtype='float64')
         self.sa_mat = np.zeros(self.phase_mat.shape, dtype='float64')
         self.set_pyuvbeam(beam_model=self.feed_type)
-        freq_array = np.array([self.frequency,])
+#         freq_array = np.array([self.frequency,])
+        freq_array = np.array([169e6,])
         for time_t in np.unique(self.uv.time_array):
             az_t, alt_t = self._radec2azalt(self.ra, self.dec, time_t)
             lmn_t = np.array([np.cos(alt_t)*np.sin(az_t), 

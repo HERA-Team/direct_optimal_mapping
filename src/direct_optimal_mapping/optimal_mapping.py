@@ -249,7 +249,7 @@ class OptMapping:
         ------
         ..a_mat: 2d matrix (complex128)
             a_matrix (Nvis X Npsf) from the given observation
-        .beam_mat: 2d matrix (complex128)
+        .beam_mat: 2d matrix (float64)
             a_matrix with only the beam term considered (Nvis X Npsf)
         '''
         self.a_mat = np.zeros((len(self.data), len(self.idx_psf_in)), dtype='float64')
@@ -362,7 +362,7 @@ class OptMapping:
             a_matrix (Nvis X (Npsf+Nps)) from the given observation
         .a_mat: 2d matrix (complex128)
             a_matrix (Nvis X Npsf) from the given observation
-        .beam_mat: 2d matrix (complex128)
+        .beam_mat: 2d matrix (float64)
             a_matrix_ps with only the beam term considered (Nvis X (Npsf+Nps))
         '''
         self.a_mat_ps = np.zeros((len(self.data), len(self.idx_psf_in)+ps_radec.shape[0]), dtype='float64')

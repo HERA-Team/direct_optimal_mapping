@@ -2,6 +2,7 @@ import numpy as np
 import pickle
 from astropy import constants as const
 import re
+from scipy import interpolate
 
 class ImgCube:
     '''Converting individual maps into an image cube,
@@ -13,7 +14,9 @@ class ImgCube:
         self.files_n5 = files_n5
         self.files_n6 = files_n6
         with open(syn_sa_file, 'rb') as f_t:
-            self.syn_sa_dic = pickle.load(f_t)
+            self.syn_sa_dic = pickle.load(f_t)            
+        self.sa_interp = interpolate.interp1d(self.syn_sa_dic['freq_mhz'], self.syn_sa_dic['sa'],
+                                              bounds_error=False, fill_value='extrapolate')
         return
         
     def image_cube_calc(self):
@@ -30,8 +33,9 @@ class ImgCube:
                 map_dic_n6 = pickle.load(f_t)
 
             freq_mhz = float(re.search('_(......)MHz', file_n5_t).group(1))
-            idx_t = np.where(freq_mhz == self.syn_sa_dic['freq_mhz'])[0]
-            syn_sa = self.syn_sa_dic['sa'][idx_t]
+#             idx_t = np.where(freq_mhz == self.syn_sa_dic['freq_mhz'])[0]
+#             syn_sa = self.syn_sa_dic['sa'][idx_t]
+            syn_sa = self.sa_interp(freq_mhz)
             print(i, freq_mhz, 'MHz', end=',')
             
             # normalization d calculation

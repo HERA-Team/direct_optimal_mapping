@@ -139,7 +139,7 @@ class OptMappingHorizon:
 
 
     def set_k_psf_horizon(self, radius_deg, calc_k=False):
-        '''Function to set up the K_psf matrix. K_psf selects
+        '''Function to set up the K_psf matrix. Original K_psf selects
         healpix from the entire sky to the regions within a
         certain radius away from the phase center
         For the horizon version, indices are not healpix indices
@@ -162,9 +162,9 @@ class OptMappingHorizon:
         Attributes:
         ------
         .k_psf_in: 1d array (int)
-            healpix map indices within the PSF
+            map indices within the PSF
         .k_psf_out: 1d array (int)
-            healpix map indices outside of the PSF
+            map indices outside of the PSF
         .k_psf: 2d array (bool), if calc_k=True
             matrix turning the full map into psf-included map
         '''
@@ -240,10 +240,6 @@ class OptMappingHorizon:
         .beam_mat_horizon: 2d matrix (complex128)
             a_matrix with only the beam term considered (Nvis X Npsf)
         '''
-        #self.a_mat_horizon = np.zeros((len(self.data),len(self.idx_psf_in)), dtype='float64')
-        #self.a_mat_horizon = np.zeros((len(self.uv.uvw_array[:,0]),len(self.idx_psf_in)), dtype='float64')
-        #print('Created A-matrix array: ',self.a_mat_horizon.shape)
-        #self.beam_mat_horizon = np.zeros(self.a_mat_horizon.shape, dtype='float64')
         self.set_pyuvbeam(beam_model=self.feed_type)
         freq_array = np.array([self.frequency,])
 
@@ -295,3 +291,89 @@ class OptMappingHorizon:
         self.inv_noise_mat = inv_noise_mat
        
         return inv_noise_mat
+
+    def set_p_mat_horizon(self, facet_radius_deg=7, facet_idx=None):
+        '''Calculating P matrix, covering the range defined by K_psf,
+        projectin to the range defined by K_facet
+        
+        Input:
+        ------
+        facet_radius_deg: Size of the circular facet. Facet will be 
+            located around the zenith at the mean integration time
+            of the given pyuvdata object. Default radius is 7 deg.
+        facet_idx: User specified facet index. Can be obtained using
+            the pixel_selection module.
+        
+        Output:
+        ------
+        None
+
+        Attribute:
+        ------
+        .p_mat: 2d matrix (complex128)
+            p_matrix from the given observation as an attribute
+        .p_diag: 1d array (complex128)
+            normalization array for the map within the facet
+        .p_square: 2d matrix (complex128)
+            square p matrix containing only the facet pixels on 
+            both dimensions
+        '''
+        #p_matrix set up
+        if not hasattr(self, 'a_mat_horizon'):
+            raise AttributeError('A matrix is not set up.')
+
+        if facet_idx is None:
+            self.set_k_facet_horizon(radius_deg=facet_radius_deg, calc_k=False)
+        else:
+            self.idx_facet_in = facet_idx
+
+        _idx = np.searchsorted(self.idx_psf_in, self.idx_facet_in) #Equivalent to Finding K_facet
+        p_mat1 = np.conjugate(self.a_mat_horizon.T)[_idx] #Equivalent to K_facet@a_mat.H
+        p_mat2 = np.diag(self.inv_noise_mat)[:, None]*self.a_mat_horizon
+        #Equivalent to inv_noise_mat@a_mat, assuming diagonal noise matrix
+
+        self.p_mat = np.real(np.matmul(p_mat1, p_mat2))
+        del p_mat1, p_mat2
+
+        self.p_square = self.p_mat[:, _idx]
+        self.p_diag = np.diag(self.p_square)
+        
+        return
+
+    def set_k_facet_horizon(self, radius_deg, calc_k=False):
+        '''Calculating the K_facet matrix
+        This code is same as non-horizon version because it
+        doesn't matter what kind of indices you use.
+        
+        Input:
+        ------
+        radius: float (in degrees)
+            radius to be included in the K_facet matrix
+            
+        Output:
+        ------
+        k_facet: 2d array (boolean)
+            Nfacet X Npsf array 
+            
+        Attributes:
+        ------
+        .k_facet_in: 1d array (int)
+            healpix map indices within the facet
+        .k_facet_out: 1d array (int)
+            healpix map indices outside of the facet
+        .k_facet: 2d array (bool), if calc_k=True
+            matrix turning the full map into facet-included map
+        '''
+        facet_radius = np.radians(radius_deg)
+        self.idx_facet_in = np.where((np.pi/2. - self.alt) < facet_radius)[0]
+        self.idx_facet_out = np.where((np.pi/2. - self.alt) > facet_radius)[0]       
+        
+        if calc_k:
+            k_full = np.diag(np.ones(len(self.idx_psf_in), dtype=bool))
+            idx_facet_out_psf = np.where((np.pi/2. - self.alt[self.idx_psf_in]) > facet_radius)[0]
+            k_facet = np.delete(k_full, idx_facet_out_psf, axis=0)
+            del k_full
+            self.k_facet = k_facet
+            return k_facet
+        else:
+            return    

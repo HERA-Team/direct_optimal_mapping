@@ -204,13 +204,10 @@ class OptMapping:
         '''
         # loading the beamfits file
         if beam_model == 'vivaldi':
-            beamfits_file = self.beam_folder+\
-                            '/efield_farfield_Vivaldi_pos_0.0_0.0_0.0_0.0_0.0_160_180MHz_high_precision_0.125MHz_simplified_model.beamfits'
-            print('Vivaldi beam simulation file is not set up yet.')
+            beamfits_file = self.beam_folder+'/NF_HERA_Vivaldi_efield_beam.fits'
         elif beam_model == 'dipole':
             beamfits_file = self.beam_folder+'/NF_HERA_Dipole_efield_beam_high-precision.fits'
-            #beamfits_file = '/nfs/esc/hera/zhileixu/git_beam/cst_beam_files/fagnoni_high_precision_dipole/H19/'+\
-            #                'E-farfield-100ohm-50-250MHz-high-acc-ind-H19-port21/efield_dipole_H19-port21_high-precision_peak-norm.fits'     
+  
         else:
             print('Please provide correct beam model (either vivaldi or dipole)')
         #print('Beam file:', beamfits_file)

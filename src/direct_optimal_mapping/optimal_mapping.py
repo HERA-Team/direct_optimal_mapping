@@ -212,9 +212,7 @@ class OptMapping:
         '''
         # loading the beamfits file
         if beam_model == 'vivaldi':
-            beamfits_file = self.beam_folder+\
-                            '/efield_farfield_Vivaldi_pos_0.0_0.0_0.0_0.0_0.0_160_180MHz_high_precision_0.125MHz_simplified_model.beamfits'
-            print('Vivaldi beam simulation file is not set up yet.')
+            beamfits_file = self.beam_folder+'/NF_HERA_Vivaldi_efield_beam.fits'
         elif beam_model == 'dipole':
             beamfits_file = self.beam_folder+'/NF_HERA_Dipole_efield_beam_high-precision.fits'
             #beamfits_file = '/nfs/esc/hera/zhileixu/git_beam/cst_beam_files/fagnoni_high_precision_dipole/H19/'+\
@@ -267,7 +265,7 @@ class OptMapping:
                                                      za_array=np.pi/2. - alt_t, 
                                                      az_za_grid=False, freq_array= freq_array,
                                                      reuse_spline=True, check_azza_domain=False)
-            print('check_azza_domain=False.')
+#             print('check_azza_domain=False.')
             beam_map_t = pyuvbeam_interp[0, 0, 0, 0].real
             idx_time = np.where(self.uv.time_array == time_t)[0]
             self.a_mat[idx_time] = uvw_sign*2*np.pi/self.wavelength*(self.uv.uvw_array[idx_time]@lmn_t)

@@ -197,10 +197,7 @@ class OptMappingHorizon:
         '''
         # loading the beamfits file
         if beam_model == 'vivaldi':
-            beamfits_file = '/nfs/esc/hera/HERA_beams/high_precision_runs/outputs/'+\
-            'cst_vivaldi_time_solver_simplified_master_Apr2021/uvbeam/'+\
-            'efield_farfield_Vivaldi_pos_0.0_0.0_0.0_0.0_0.0_160_180MHz_high_precision_0.125MHz_simplified_model.beamfits'
-            #print('Vivaldi beam simulation file is not set up yet.')
+            beamfits_file = self.beam_folder+'/NF_HERA_Vivaldi_efield_beam.fits'
         elif beam_model == 'dipole':
             beamfits_file = '/nfs/esc/hera/zhileixu/git_beam/HERA-Beams/NicolasFagnoniBeams/NF_HERA_Dipole_efield_beam_high-precision.fits'
             #beamfits_file = '/nfs/esc/hera/zhileixu/git_beam/cst_beam_files/fagnoni_high_precision_dipole/H19/'+\

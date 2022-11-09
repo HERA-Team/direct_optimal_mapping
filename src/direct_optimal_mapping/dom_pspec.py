@@ -79,17 +79,29 @@ class PS_Calc:
         '''Calculating the fft of the data cube with the window applied
         along the frequency direction.
         '''
-        z_window = dspec.gen_window(window, self.nz)
-        data_cube1_tapered = self.data_cube1 * z_window[:, np.newaxis, np.newaxis]
-        data_cube2_tapered = self.data_cube2 * z_window[:, np.newaxis, np.newaxis]
         
-        self.fft3d1 = self.voxel_volume*np.fft.fftn(data_cube1_tapered)
-        self.fft3d2 = self.voxel_volume*np.fft.fftn(data_cube2_tapered)
-        self.ps3d = self.fft3d1.conjugate() * self.fft3d2 / (self.n_voxel*self.voxel_volume)
+        if window == None:
+            data_cube1_tapered = self.data_cube1
+            data_cube2_tapered = self.data_cube2
+        else:
+            z_window = dspec.gen_window(window, self.nz)
+            data_cube1_tapered = self.data_cube1 * z_window[:, np.newaxis, np.newaxis]
+            data_cube2_tapered = self.data_cube2 * z_window[:, np.newaxis, np.newaxis]
+            self.kpara_window = np.fft.fftn(z_window)
+        
+#         x_window = dspec.gen_window(window, self.nx)
+#         data_cube1_tapered = data_cube1_tapered * x_window[np.newaxis, :, np.newaxis]
+#         data_cube2_tapered = data_cube2_tapered * x_window[np.newaxis, :, np.newaxis]
+        
+#         y_window = dspec.gen_window(window, self.ny)
+#         data_cube1_tapered = data_cube1_tapered * y_window[np.newaxis, np.newaxis, :]
+#         data_cube2_tapered = data_cube2_tapered * y_window[np.newaxis, np.newaxis, :]
+        
+        self.fft3d1 = (self.voxel_volume*self.n_voxel)*np.fft.fftn(data_cube1_tapered, norm='forward')
+        self.fft3d2 = (self.voxel_volume*self.n_voxel)*np.fft.fftn(data_cube2_tapered, norm='forward')
+        self.ps3d = self.fft3d1.conjugate() * self.fft3d2 / (self.n_voxel * self.voxel_volume)
         self.ps3d = self.ps3d.real
-        
-        self.kpara_window = np.fft.fftn(z_window)
-        
+                
         return
     
     def set_k_space(self):

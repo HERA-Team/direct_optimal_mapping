@@ -97,8 +97,8 @@ class PS_Calc:
 #         data_cube1_tapered = data_cube1_tapered * y_window[np.newaxis, np.newaxis, :]
 #         data_cube2_tapered = data_cube2_tapered * y_window[np.newaxis, np.newaxis, :]
         
-        self.fft3d1 = (self.voxel_volume*self.n_voxel)*np.fft.fftn(data_cube1_tapered, norm='forward')
-        self.fft3d2 = (self.voxel_volume*self.n_voxel)*np.fft.fftn(data_cube2_tapered, norm='forward')
+        self.fft3d1 = (self.voxel_volume) * np.fft.fftn(data_cube1_tapered, norm='backward')
+        self.fft3d2 = (self.voxel_volume) * np.fft.fftn(data_cube2_tapered, norm='backward')
         self.ps3d = self.fft3d1.conjugate() * self.fft3d2 / (self.n_voxel * self.voxel_volume)
         self.ps3d = self.ps3d.real
                 

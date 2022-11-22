@@ -104,7 +104,7 @@ class PS_Calc:
                 
         return
     
-    def set_k_space(self):
+    def set_k_space(self, binning='lin', n_perp=None):
         '''Setting the k-space grid from the cosmological grid
         '''
         self.kx = np.fft.fftfreq(self.nx, d=self.res_x_mpch)*2*np.pi
@@ -117,16 +117,24 @@ class PS_Calc:
 
         self.k_perp = np.sqrt(np.average(self.k_xx, axis=0)**2 + 
                               np.average(self.k_yy, axis=0)**2)
-        self.k_para = self.kz[:self.nz//2]
-        n_perp = max(self.nx//2, self.ny//2)
-        self.k_perp_edge = np.linspace(0, np.max(self.k_perp), n_perp+1)
+        if n_perp is None:
+            n_perp = max(self.nx//2, self.ny//2)
+        n_para = self.nz//2
+        self.k_para = self.kz[:n_para]
+        if binning == 'lin':
+            self.k_perp_edge = np.linspace(0, np.max(self.k_perp), n_perp+1)
+        elif binning == 'log':
+            self.k_perp_edge = np.geomspace(np.min(self.k_perp[self.k_perp>0])/2., 
+                                            np.max(self.k_perp), n_perp+1)
+        else:
+            raise RuntimeError('Wrong binning input.')
         self.ps2d = np.zeros((n_perp, self.nz))
         self.ps2d_se = np.zeros((n_perp, self.nz))
         for i in range(len(self.k_perp_edge)-1):
             idx_t = np.where((self.k_perp > self.k_perp_edge[i]) & (self.k_perp < self.k_perp_edge[i+1]))
             self.ps2d[i] = np.average(self.ps3d[:, idx_t[0], idx_t[1]], axis=1)
             self.ps2d_se[i] = np.std(self.ps3d[:, idx_t[0], idx_t[1]], axis=1)/np.sqrt(len(idx_t[0]))
-        self.ps2d = self.ps2d[:, :self.nz//2]
+        self.ps2d = self.ps2d[:, :n_para]
         self.k_perp = self.k_perp_edge[:-1]
         
         return

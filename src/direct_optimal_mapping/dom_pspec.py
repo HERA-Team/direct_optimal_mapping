@@ -111,8 +111,6 @@ class PS_Calc:
         self.ky = np.fft.fftfreq(self.ny, d=self.res_y_mpch)*2*np.pi
         self.kz = np.fft.fftfreq(self.nz, d=self.res_z_mpch)*2*np.pi
 
-#         self.k_xx, self.k_yy, self.k_zz = np.meshgrid(self.kx, self.ky, self.kz, indexing='ij')
-        
         self.k_zz, self.k_xx, self.k_yy = np.meshgrid(self.kz, self.kx, self.ky, indexing='ij')
 
         self.k_perp = np.sqrt(np.average(self.k_xx, axis=0)**2 + 

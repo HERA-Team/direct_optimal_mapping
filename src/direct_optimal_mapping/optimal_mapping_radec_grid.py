@@ -114,8 +114,6 @@ class OptMapping:
                                        height=uv.telescope_location_lat_lon_alt_degrees[2]*u.m)
         
         self.uv = uv
-#         self.nside = nside
-#         self.npix = hp.nside2npix(nside)
         self.hera_dec = self.uv.telescope_location_lat_lon_alt[0]
         self.lsts = np.unique(self.uv.lst_array)
         self.times = np.unique(uv.time_array)
@@ -128,9 +126,7 @@ class OptMapping:
                 self.feed_type = 'vivaldi'
         else:
             self.feed_type = feed
-        #print('RA/DEC in the epoch of %s, with %s beam used.'%(self.equinox, self.feed_type))
 
-#         theta, phi = hp.pix2ang(nside, range(self.npix))
         self.ra = np.radians(px_dic['ra_deg']).flatten()
         self.dec = np.radians(px_dic['dec_deg']).flatten()
         self.px_sa = px_dic['sa_sr'].flatten()
@@ -174,8 +170,6 @@ class OptMapping:
         aa = AltAz(location=self.hera_site, obstime=obs_time)
         if self.equinox == 'J2000':
             c = SkyCoord(ra=ra, dec=dec, unit='radian', frame=TETE(obstime=self.equinox))
-            #c = SkyCoord(ra=ra, dec=dec, unit='radian', frame='icrs')
-            #print('ICRS')
         elif self.equinox == 'Current':
             c = SkyCoord(ra=ra, dec=dec, unit='radian', frame=TETE(obstime=obs_time))
         else:
@@ -215,7 +209,6 @@ class OptMapping:
         pyuvbeam.read_beamfits(beamfits_file)        
         pyuvbeam.efield_to_power()
         pyuvbeam.select(polarizations=self.uv.polarization_array)
-        #print(pyuvbeam.polarization_array)
         pyuvbeam.peak_normalize()
         pyuvbeam.interpolation_function = 'az_za_simple'
         pyuvbeam.freq_interp_kind = 'cubic'
@@ -245,8 +238,7 @@ class OptMapping:
         self.beam_mat = np.zeros(self.phase_mat.shape, dtype='float64')
         self.sa_mat = np.zeros(self.phase_mat.shape, dtype='float64')
         self.set_pyuvbeam(beam_model=self.feed_type)
-#         freq_array = np.array([self.frequency,])
-        freq_array = np.array([169e6,])
+        freq_array = np.array([self.frequency,])
         for time_t in np.unique(self.uv.time_array):
             az_t, alt_t = self._radec2azalt(self.ra, self.dec, time_t)
             lmn_t = np.array([np.cos(alt_t)*np.sin(az_t), 

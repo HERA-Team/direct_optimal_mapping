@@ -9,7 +9,7 @@ class PS_Calc:
     '''Class to calculate power spectrum from direct opitmal
     mapping data cubes
     '''
-    def __init__(self, data_cube_dic1, data_cube_dic2=None):
+    def __init__(self, data_cube_dic1, data_cube_dic2=None, window='bh7'):
         '''Initialization of the class
         
         Parameters
@@ -31,6 +31,7 @@ class PS_Calc:
         self.px_dic = data_cube_dic1['px_dic']
         self.data_cube1 = data_cube_dic1['data_cube_I']
         self.data_cube2 = data_cube_dic2['data_cube_I']
+        self.window = window
         
         return
     
@@ -75,7 +76,7 @@ class PS_Calc:
         
         return
     
-    def calc_fft(self, window='bh7'):
+    def calc_fft(self):
         '''Calculating the fft of the data cube with the window applied
         along the frequency direction.
         '''
@@ -84,7 +85,7 @@ class PS_Calc:
             data_cube1_tapered = self.data_cube1
             data_cube2_tapered = self.data_cube2
         else:
-            z_window = dspec.gen_window(window, self.nz)
+            z_window = dspec.gen_window(self.window, self.nz)
             data_cube1_tapered = self.data_cube1 * z_window[:, np.newaxis, np.newaxis]
             data_cube2_tapered = self.data_cube2 * z_window[:, np.newaxis, np.newaxis]
             self.kpara_window = np.fft.fftn(z_window)
@@ -136,6 +137,94 @@ class PS_Calc:
         self.k_perp = self.k_perp_edge[:-1]
         
         return
+
+    
+    def calc_p_tilda(self, p_dic, perp_apodization=False):
+        '''FFT of the 3d p_mat
+
+        Parameter
+        ---------
+        p_dic: dictioinary
+            storing the p matrix for each frequencc, 
+            N_freq X N_pix X N_pix
+        perp_apodization: Boolean
+            Perform apodization along the perpendicular direction
+
+        Return
+        ------
+        '''
+        z_window = dspec.gen_window(self.window, ps_calc.nz)
+        p_mat_I_tapered = p_dic['p_mat_I'] * z_window[:, np.newaxis, np.newaxis]       
+        if perp_apodization:
+            x_window = dspec.gen_window(self.window, ps_calc.nx)
+            y_window = dspec.gen_window(self.window, ps_calc.ny)
+            p_mat_I_tapered = p_mat_I_tapered * x_window[np.newaxis, :, np.newaxis]
+            p_mat_I_tapered = p_mat_I_tapered * y_window[np.newaxis, np.newaxis, :]
+            
+        p_3d = scipy.linalg.block_diag(*p_mat_I_tapered)
+        p_tilda1 = np.zeros(p_mat.shape, dtype='complex128')
+        for i in range(p_tilda1.shape[1]):
+            p_col = p_mat[:, i]
+            p_col_reshape = p_col.reshape(shape)
+            p_col_tilda = np.fft.fftn(p_col_reshape, norm='forward').flatten()
+            p_tilda1[:, i] = p_col_tilda
+        p_tilda = np.zeros(p_tilda1.shape, dtype='complex128')
+        for i in range(p_tilda.shape[0]):
+            p_row = p_tilda1[i, :]
+            p_row_reshape = p_row.reshape(shape)
+            p_row_tilda = np.fft.ifftn(p_row_reshape, norm='forward').flatten()
+            p_row_tilda = np.conjugate(p_row_tilda)
+            p_tilda[i, :] = p_row_tilda
+        
+        self.h_mat = 0.5*np.abs(p_tilda)**2        
+        self.p_tilda = p_tilda
+        
+        return p_tilda       
+    
+    
+    def h_mat_binning(self):
+        '''Binning the 3d h_mat into k_para and k_perp
+        '''
+        k_perp = np.sqrt(self.k_xx**2 +self.k_yy**2)
+
+        n_para_bin = len(self.kz)
+        n_perp_bin = len(self.k_perp_edge) - 1
+
+        h_mat_2d_partial = np.zeros((h_mat.shape[0], n_para_bin*n_perp_bin))
+        for k in range(h_mat.shape[0]):
+            h_mat_row_t = h_mat[k]
+            h_mat_row_t_reshaped = h_mat_row_t.reshape([n_para_bin, len(self.kx), len(self.ky)])
+            h_mat_row_t_2d = np.zeros([n_para_bin, n_perp_bin], dtype='complex128')
+            for j in range(n_para_bin):
+                p_perp_t = np.zeros(n_perp_bin, dtype='complex128')
+                for i in range(n_perp_bin):
+                    idx_t = np.where((k_perp[j, :, :] > self.k_perp_edge[i]) & 
+                                     (k_perp[j, :, :] < self.k_perp_edge[i+1]))
+                    p_perp_t[i] = np.average(h_mat_row_t_reshaped[j][idx_t])
+                h_mat_row_t_2d[j] = p_perp_t
+            h_mat_2d_partial[k] = h_mat_row_t_2d.flatten()
+
+        h_mat_2d = np.zeros((n_para_bin*n_perp_bin, n_para_bin*n_perp_bin))
+        for k in range(h_mat_2d_partial.shape[1]):
+            h_mat_row_t = h_mat_2d_partial[:, k]
+            h_mat_row_t_reshaped = h_mat_row_t.reshape([n_para_bin, len(self.kx), len(self.ky)])
+            h_mat_row_t_2d = np.zeros([n_para_bin, n_perp_bin], dtype='complex128')
+            for j in range(n_para_bin):
+                p_perp_t = np.zeros(n_perp_bin, dtype='complex128')
+                for i in range(n_perp_bin):
+                    idx_t = np.where((k_perp[j, :, :] > self.k_perp_edge[i]) & 
+                                     (k_perp[j, :, :] < self.k_perp_edge[i+1]))
+                    p_perp_t[i] = np.average(h_mat_row_t_reshaped[j][idx_t])
+                h_mat_row_t_2d[j] = p_perp_t
+            h_mat_2d[:, k] = h_mat_row_t_2d.flatten()
+            
+        self.h_mat_2d = h_mat_2d.real
+        
+        h_sum = np.nansum(self.h_mat_2d[:, :], axis=1).reshape(n_para_bin, n_perp_bin)
+        self.window = 1/h_sum
+        
+        return
+    
     
     def calc_ps1d(self, nbin=None, avoid_fg=True):
         '''Calculating 1d PS from the 3d PS

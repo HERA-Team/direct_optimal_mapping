@@ -1,4 +1,5 @@
 import numpy as np
+import scipy
 from astropy.cosmology import WMAP9 as cosmo
 import astropy.units as u
 from astropy.cosmology.units import littleh, with_H0
@@ -81,7 +82,7 @@ class PS_Calc:
         along the frequency direction.
         '''
         
-        if window == None:
+        if self.window == None:
             data_cube1_tapered = self.data_cube1
             data_cube2_tapered = self.data_cube2
         else:
@@ -107,6 +108,15 @@ class PS_Calc:
     
     def set_k_space(self, binning='lin', n_perp=None):
         '''Setting the k-space grid from the cosmological grid
+        Parameters
+        ----------
+        binning: str
+            binning can be 'lin' or 'log', meaning binning k_perp evenly in
+            linear or log space
+        n_perp: int
+            number of k_perp bins
+        Return
+        ------
         '''
         self.kx = np.fft.fftfreq(self.nx, d=self.res_x_mpch)*2*np.pi
         self.ky = np.fft.fftfreq(self.ny, d=self.res_y_mpch)*2*np.pi
@@ -153,18 +163,19 @@ class PS_Calc:
         Return
         ------
         '''
-        z_window = dspec.gen_window(self.window, ps_calc.nz)
+        z_window = dspec.gen_window(self.window, self.nz)
+        shape = [self.nz, self.nx, self.ny]
         p_mat_I_tapered = p_dic['p_mat_I'] * z_window[:, np.newaxis, np.newaxis]       
         if perp_apodization:
-            x_window = dspec.gen_window(self.window, ps_calc.nx)
-            y_window = dspec.gen_window(self.window, ps_calc.ny)
+            x_window = dspec.gen_window(self.window, self.nx)
+            y_window = dspec.gen_window(self.window, self.ny)
             p_mat_I_tapered = p_mat_I_tapered * x_window[np.newaxis, :, np.newaxis]
             p_mat_I_tapered = p_mat_I_tapered * y_window[np.newaxis, np.newaxis, :]
             
         p_3d = scipy.linalg.block_diag(*p_mat_I_tapered)
-        p_tilda1 = np.zeros(p_mat.shape, dtype='complex128')
+        p_tilda1 = np.zeros(p_3d.shape, dtype='complex128')
         for i in range(p_tilda1.shape[1]):
-            p_col = p_mat[:, i]
+            p_col = p_3d[:, i]
             p_col_reshape = p_col.reshape(shape)
             p_col_tilda = np.fft.fftn(p_col_reshape, norm='forward').flatten()
             p_tilda1[:, i] = p_col_tilda
@@ -190,9 +201,9 @@ class PS_Calc:
         n_para_bin = len(self.kz)
         n_perp_bin = len(self.k_perp_edge) - 1
 
-        h_mat_2d_partial = np.zeros((h_mat.shape[0], n_para_bin*n_perp_bin))
-        for k in range(h_mat.shape[0]):
-            h_mat_row_t = h_mat[k]
+        h_mat_2d_partial = np.zeros((self.h_mat.shape[0], n_para_bin*n_perp_bin))
+        for k in range(self.h_mat.shape[0]):
+            h_mat_row_t = self.h_mat[k]
             h_mat_row_t_reshaped = h_mat_row_t.reshape([n_para_bin, len(self.kx), len(self.ky)])
             h_mat_row_t_2d = np.zeros([n_para_bin, n_perp_bin], dtype='complex128')
             for j in range(n_para_bin):

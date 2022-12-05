@@ -149,7 +149,7 @@ class PS_Calc:
         return
 
     
-    def calc_p_tilda(self, p_dic, perp_apodization=False):
+    def calc_p_tilda(self, p_dic, normalize=True, perp_apodization=False):
         '''FFT of the 3d p_mat
 
         Parameter
@@ -159,6 +159,8 @@ class PS_Calc:
             N_freq X N_pix X N_pix
         perp_apodization: Boolean
             Perform apodization along the perpendicular direction
+        normalize: Boolean
+            whether normalize ps3d with the h_sum3d
 
         Return
         ------
@@ -189,8 +191,11 @@ class PS_Calc:
         
         self.h_mat = 0.5*np.abs(p_tilda)**2        
         self.p_tilda = p_tilda
+        self.h_sum3d = np.sum(self.h_mat, axis=1).reshape(shape)
+        if normalize:
+            self.ps3d = self.ps3d/self.h_sum3d
         
-        return p_tilda       
+        return 
     
     
     def h_mat_binning(self):

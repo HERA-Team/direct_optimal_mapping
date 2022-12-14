@@ -10,7 +10,7 @@ class PS_Calc:
     '''Class to calculate power spectrum from direct opitmal
     mapping data cubes
     '''
-    def __init__(self, data_cube_dic1, data_cube_dic2=None, window='bh7'):
+    def __init__(self, data_cube_dic1, data_cube_dic2=None, taper_type='bh7'):
         '''Initialization of the class
         
         Parameters
@@ -21,6 +21,9 @@ class PS_Calc:
         data_cube_dic2: dictionary or None
             identical to data_cube_dic1 with independent noise propertie. 
             If None, data_cube_dic2 = data_cube_dic1
+        taper_type: str
+            Taper function type along the frequency axis
+            accepted inputs are 'tophat', 'hann', 'tukey', 'bh4', 'bh7', 'cs9', and 'cs11'
         
         Returns
         -------
@@ -32,7 +35,7 @@ class PS_Calc:
         self.px_dic = data_cube_dic1['px_dic']
         self.data_cube1 = data_cube_dic1['data_cube_I']
         self.data_cube2 = data_cube_dic2['data_cube_I']
-        self.window = window
+        self.taper_type = taper_type
         
         return
     
@@ -77,19 +80,27 @@ class PS_Calc:
         
         return
     
-    def calc_fft(self):
-        '''Calculating the fft of the data cube with the window applied
+    def calc_fft(self, norm=True):
+        '''Calculating the fft of the data cube with the taper applied
         along the frequency direction.
+        
+        Parameters
+        ----------
+        norm: boolean
+            Normalized after the tapering, default: True
         '''
         
-        if self.window == None:
+        if self.taper_type == None:
             data_cube1_tapered = self.data_cube1
             data_cube2_tapered = self.data_cube2
+            norm_factor = 1.
         else:
-            z_window = dspec.gen_window(self.window, self.nz)
-            data_cube1_tapered = self.data_cube1 * z_window[:, np.newaxis, np.newaxis]
-            data_cube2_tapered = self.data_cube2 * z_window[:, np.newaxis, np.newaxis]
-            self.kpara_window = np.fft.fftn(z_window)
+            z_taper = dspec.gen_window(self.taper_type, self.nz)
+            self.taper_3d = z_taper[:, np.newaxis, np.newaxis]
+            data_cube1_tapered = self.data_cube1 * self.taper_3d
+            data_cube2_tapered = self.data_cube2 * self.taper_3d
+            norm_factor = self.nz/np.sum(self.taper_3d**2)
+#             self.kpara_window = np.fft.fftn(z_window)
         
 #         x_window = dspec.gen_window(window, self.nx)
 #         data_cube1_tapered = data_cube1_tapered * x_window[np.newaxis, :, np.newaxis]
@@ -103,6 +114,8 @@ class PS_Calc:
         self.fft3d2 = (self.voxel_volume) * np.fft.fftn(data_cube2_tapered, norm='backward')
         self.ps3d = self.fft3d1.conjugate() * self.fft3d2 / (self.n_voxel * self.voxel_volume)
         self.ps3d = self.ps3d.real
+        if norm:
+            self.ps3d = self.ps3d * norm_factor
                 
         return
     
@@ -165,14 +178,14 @@ class PS_Calc:
         Return
         ------
         '''
-        z_window = dspec.gen_window(self.window, self.nz)
+        z_taper = dspec.gen_window(self.taper_type, self.nz)
         shape = [self.nz, self.nx, self.ny]
-        p_mat_I_tapered = p_dic['p_mat_I'] * z_window[:, np.newaxis, np.newaxis]       
-        if perp_apodization:
-            x_window = dspec.gen_window(self.window, self.nx)
-            y_window = dspec.gen_window(self.window, self.ny)
-            p_mat_I_tapered = p_mat_I_tapered * x_window[np.newaxis, :, np.newaxis]
-            p_mat_I_tapered = p_mat_I_tapered * y_window[np.newaxis, np.newaxis, :]
+        p_mat_I_tapered = p_dic['p_mat_I'] * z_taper[:, np.newaxis, np.newaxis]       
+#         if perp_apodization:
+#             x_window = dspec.gen_window(self.window, self.nx)
+#             y_window = dspec.gen_window(self.window, self.ny)
+#             p_mat_I_tapered = p_mat_I_tapered * x_window[np.newaxis, :, np.newaxis]
+#             p_mat_I_tapered = p_mat_I_tapered * y_window[np.newaxis, np.newaxis, :]
             
         p_3d = scipy.linalg.block_diag(*p_mat_I_tapered)
         p_tilda1 = np.zeros(p_3d.shape, dtype='complex128')

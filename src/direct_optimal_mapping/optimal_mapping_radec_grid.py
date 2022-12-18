@@ -86,7 +86,8 @@ class OptMapping:
     
     '''
     
-    def __init__(self, uv, px_dic, epoch='J2000', feed=None, 
+    def __init__(self, uv, px_dic, epoch='J2000', feed=None,
+                 beam_file = None,
                  beam_folder='/nfs/esc/hera/zhileixu/git_beam/HERA-Beams/NicolasFagnoniBeams'):
         '''Init function for basic setup
          
@@ -101,9 +102,13 @@ class OptMapping:
         feed: str
             feed type 'dipole' or 'vivaldi'. Default is None, and feed type is determined by
             the observation date
+        beam_file: str or None
+            beam file address, should be in the pyuvbeam fits format describing the efield
+            if None (default), look for the beam files in the beam folder
         beam_folder: str
             folder of the simulated primary beam files
-
+            only in action when beam_file is None
+            
         Return
         ------
         None        
@@ -118,14 +123,19 @@ class OptMapping:
         self.lsts = np.unique(self.uv.lst_array)
         self.times = np.unique(uv.time_array)
         self.equinox = epoch
-        self.beam_folder = beam_folder
-        if feed is None:
-            if np.mean(self.times) < 2458362: #2018-09-01
-                self.feed_type = 'dipole'
+        if beam_file is None:
+            self.beam_folder = beam_folder
+            if feed is None:
+                if np.mean(self.times) < 2458362: #2018-09-01
+                    self.feed_type = 'dipole'
+                    self.beam_file = self.beam_folder+'/NF_HERA_Vivaldi_efield_beam.fits'
+                else:
+                    self.feed_type = 'vivaldi'
+                    self.beam_file = self.beam_folder+'/NF_HERA_Dipole_efield_beam_high-precision.fits'
             else:
-                self.feed_type = 'vivaldi'
+                self.feed_type = feed            
         else:
-            self.feed_type = feed
+            self.beam_file = beam_file
 
         self.ra = np.radians(px_dic['ra_deg']).flatten()
         self.dec = np.radians(px_dic['dec_deg']).flatten()
@@ -179,13 +189,13 @@ class OptMapping:
         
         return az, alt
     
-    def set_pyuvbeam(self, beam_model):
+    def set_pyuvbeam(self, beam_file):
         '''Set up the pyuvbeam from simulation for interpolation
         
         Parameters
         ----------
-        beam_model: str ('vivaldi' or 'dipole')
-            beam model used for interpolation
+        beam_file: str 
+            address of the beam file
             
         Return
         ------
@@ -196,17 +206,9 @@ class OptMapping:
         .pyuvbeam: UVBeam Object
             UVBeam Object for beam interpolation 
         '''
-        # loading the beamfits file
-        if beam_model == 'vivaldi':
-            beamfits_file = self.beam_folder+'/NF_HERA_Vivaldi_efield_beam.fits'
-        elif beam_model == 'dipole':
-            beamfits_file = self.beam_folder+'/NF_HERA_Dipole_efield_beam_high-precision.fits'
-  
-        else:
-            print('Please provide correct beam model (either vivaldi or dipole)')
-        #print('Beam file:', beamfits_file)
+
         pyuvbeam = UVBeam()
-        pyuvbeam.read_beamfits(beamfits_file)        
+        pyuvbeam.read_beamfits(beam_file)        
         pyuvbeam.efield_to_power()
         pyuvbeam.select(polarizations=self.uv.polarization_array)
         pyuvbeam.peak_normalize()
@@ -237,7 +239,7 @@ class OptMapping:
         self.phase_mat = np.zeros((self.nvis, self.npx), dtype='float64')
         self.beam_mat = np.zeros(self.phase_mat.shape, dtype='float64')
         self.sa_mat = np.zeros(self.phase_mat.shape, dtype='float64')
-        self.set_pyuvbeam(beam_model=self.feed_type)
+        self.set_pyuvbeam(beam_file=self.beam_file)
         freq_array = np.array([self.frequency,])
         for time_t in np.unique(self.uv.time_array):
             az_t, alt_t = self._radec2azalt(self.ra, self.dec, time_t)

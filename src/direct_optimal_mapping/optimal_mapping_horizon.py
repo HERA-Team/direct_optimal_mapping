@@ -21,7 +21,9 @@ class OptMappingHorizon:
     '''Optimal Mapping Object for  horizon coordinate mapping
     '''
     
-    def __init__(self, uv, cellsize, epoch='J2000', feed=None):
+    def __init__(self, uv, cellsize, epoch='J2000', feed=None,
+                 beam_file = None,
+                 beam_folder='/nfs/esc/hera/zhileixu/git_beam/HERA-Beams/NicolasFagnoniBeams'):
         '''Init function for basic setup
          
         Input
@@ -37,6 +39,12 @@ class OptMappingHorizon:
         feed: str
             feed type 'dipole' or 'vivaldi'. Default is None, and feed type is determined by
             the observation date
+        beam_file: str or None
+            beam file address, should be in the pyuvbeam fits format describing the efield
+            if None (default), look for the beam files in the beam folder
+        beam_folder: str
+            folder of the simulated primary beam files
+            only in action when beam_file is None
 
         Return
         ------
@@ -53,14 +61,19 @@ class OptMappingHorizon:
         self.lsts = np.unique(self.uv.lst_array)
         self.times = np.unique(uv.time_array)
         self.equinox = epoch
-        if feed is None:
-            if np.mean(self.times) < 2458362: #2018-09-01
-                self.feed_type = 'dipole'
+        if beam_file is None:
+            self.beam_folder = beam_folder
+            if feed is None:
+                if np.mean(self.times) < 2458362: #2018-09-01
+                    self.feed_type = 'dipole'
+                    self.beam_file = self.beam_folder+'/NF_HERA_Vivaldi_efield_beam.fits'
+                else:
+                    self.feed_type = 'vivaldi'
+                    self.beam_file = self.beam_folder+'/NF_HERA_Dipole_efield_beam_high-precision.fits'
             else:
-                self.feed_type = 'vivaldi'
+                self.feed_type = feed            
         else:
-            self.feed_type = feed
-        #print('RA/DEC in the epoch of %s, with %s beam used.'%(self.equinox, self.feed_type))
+            self.beam_file = beam_file
 
         # calculate time spacing and actual cell size
         # cell size cannot be larger than the LST spacing
@@ -180,13 +193,13 @@ class OptMappingHorizon:
         else:
             return
 
-    def set_pyuvbeam(self, beam_model):
+    def set_pyuvbeam(self, beam_file):
         '''Set up the pyuvbeam from simulation for interpolation
         Args
         ------
-        beam_model: str ('vivaldi' or 'dipole')
-            beam model used for interpolation
-
+        beam_file: str 
+            address of the beam file
+            
         Output:
         ------
         None
@@ -195,18 +208,9 @@ class OptMappingHorizon:
         .pyuvbeam: UVBeam Object
             UVBeam Object for beam interpolation
         '''
-        # loading the beamfits file
-        if beam_model == 'vivaldi':
-            beamfits_file = self.beam_folder+'/NF_HERA_Vivaldi_efield_beam.fits'
-        elif beam_model == 'dipole':
-            beamfits_file = '/nfs/esc/hera/zhileixu/git_beam/HERA-Beams/NicolasFagnoniBeams/NF_HERA_Dipole_efield_beam_high-precision.fits'
-            #beamfits_file = '/nfs/esc/hera/zhileixu/git_beam/cst_beam_files/fagnoni_high_precision_dipole/H19/'+\
-            #                'E-farfield-100ohm-50-250MHz-high-acc-ind-H19-port21/efield_dipole_H19-port21_high-precision_peak-norm.fits'
-        else:
-            print('Please provide correct beam model (either vivaldi or dipole)')
-        #print('Beam file:', beamfits_file)
+
         pyuvbeam = UVBeam()
-        pyuvbeam.read_beamfits(beamfits_file)
+        pyuvbeam.read_beamfits(beam_file)
         pyuvbeam.efield_to_power()
         pyuvbeam.select(polarizations=self.uv.polarization_array)
         #pyuvbeam.select(polarizations=[-6,])
@@ -237,7 +241,7 @@ class OptMappingHorizon:
         .beam_mat_horizon: 2d matrix (float64)
             a_matrix with only the beam term considered (Nvis X Npsf)
         '''
-        self.set_pyuvbeam(beam_model=self.feed_type)
+        self.set_pyuvbeam(beam_file=self.beam_file)
         freq_array = np.array([self.frequency,])
 
         self.az_mat = self.az[self.idx_psf_in]

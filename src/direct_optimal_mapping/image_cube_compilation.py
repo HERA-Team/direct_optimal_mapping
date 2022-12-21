@@ -37,23 +37,23 @@ class ImgCube:
             print(i, freq_mhz, 'MHz', end=',')
             
             # normalization d calculation
-            d_diag = 1/(map_dic_n5['beam_weight_sum'] * map_dic_n5['px_dic']['sa_sr'].flatten()) # vis -> Jy/beam
-            d_diag = d_diag/syn_sa # Jy/beam -> Jy/sr
+            d_diag = 1/(map_dic_n5['beam_weight_sum'] * np.square(map_dic_n5['px_dic']['sa_sr']).flatten()) # vis -> Jy/sr
+#             d_diag = d_diag/syn_sa # Jy/beam -> Jy/sr
             jysr2mk = 1e-26*const.c**2/2/(1e6*freq_mhz)**2/const.k_B*1e3
-            d_diag = d_diag * jysr2mk # Jy/sr -> mK
+            d_diag = d_diag * jysr2mk.value # Jy/sr -> mK
 
             map_n5_t = map_dic_n5['map_sum'].squeeze() * d_diag
             map_n6_t = map_dic_n6['map_sum'].squeeze() * d_diag
             
             if i == 0:
                 data_dic = {'px_dic':map_dic_n5['px_dic']}
-                img_cube_n5 = map_n5_t.value
-                img_cube_n6 = map_n6_t.value
+                img_cube_n5 = map_n5_t
+                img_cube_n6 = map_n6_t
                 freq_mhz_arr = np.array([freq_mhz,])
                 self.d_diag = d_diag
             else:
-                img_cube_n5 = np.vstack((img_cube_n5, map_n5_t.value))
-                img_cube_n6 = np.vstack((img_cube_n6, map_n5_t.value))
+                img_cube_n5 = np.vstack((img_cube_n5, map_n5_t))
+                img_cube_n6 = np.vstack((img_cube_n6, map_n5_t))
                 freq_mhz_arr = np.append(freq_mhz_arr, freq_mhz)
                 self.d_diag = np.vstack((self.d_diag, d_diag))
         img_cube_n5 = img_cube_n5.squeeze().reshape(((-1, *map_dic_n5['px_dic']['ra_deg'].shape)))
@@ -67,12 +67,13 @@ class ImgCube:
         
         return self.data_dic
     
-    def p_mat_calc(self):
+    def p_mat_calc(self, norm=True):
         '''Calculating p matrices
         
         Parameters
         ----------
-
+        norm: boolean
+            whether multiply D on the left of A^dagger N^-1 A
         Returns
         -------
         
@@ -88,20 +89,22 @@ class ImgCube:
 
             freq_mhz = float(re.search('_(......)MHz', file_n5_t).group(1))
             print(i, freq_mhz, 'MHz', end=',')
-            
-            d_diag = self.d_diag[i]
-            
-            p_mat_n5_t = map_dic_n5['p_sum']*d_diag[:, np.newaxis]
-            p_mat_n6_t = map_dic_n6['p_sum']*d_diag[:, np.newaxis]
+            if norm:
+                d_diag = self.d_diag[i]
+                p_mat_n5_t = map_dic_n5['p_sum']*d_diag[:, np.newaxis]
+                p_mat_n6_t = map_dic_n6['p_sum']*d_diag[:, np.newaxis]
+            else:
+                p_mat_n5_t = map_dic_n5['p_sum']
+                p_mat_n6_t = map_dic_n6['p_sum']
             
             if i == 0:
                 p_dic = {'px_dic':map_dic_n5['px_dic']}
-                p_mat_n5 = p_mat_n5_t[np.newaxis, ...].value
-                p_mat_n6 = p_mat_n6_t[np.newaxis, ...].value
+                p_mat_n5 = p_mat_n5_t[np.newaxis, ...]
+                p_mat_n6 = p_mat_n6_t[np.newaxis, ...]
                 freq_mhz_arr = np.array([freq_mhz,])
             else:
-                p_mat_n5 = np.concatenate((p_mat_n5, p_mat_n5_t[np.newaxis, ...].value), axis=0)
-                p_mat_n6 = np.concatenate((p_mat_n6, p_mat_n6_t[np.newaxis, ...].value), axis=0)
+                p_mat_n5 = np.concatenate((p_mat_n5, p_mat_n5_t[np.newaxis, ...]), axis=0)
+                p_mat_n6 = np.concatenate((p_mat_n6, p_mat_n6_t[np.newaxis, ...]), axis=0)
                 freq_mhz_arr = np.append(freq_mhz_arr, freq_mhz)
         
         p_dic['p_mat_pol-5'] = p_mat_n5

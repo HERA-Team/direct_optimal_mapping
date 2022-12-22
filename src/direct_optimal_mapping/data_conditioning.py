@@ -134,12 +134,12 @@ class DataConditioning:
                                           inplace=True,
                                           keep_all_metadata=False,)
         # noise redundant averaging
-        bl_grp,_,_ = self.uvn.get_redundancies(tol=tol)
-        n_bl = np.array([len(grp_t) for grp_t in bl_grp])
         self.uvn.compress_by_redundancy(tol=tol,
                                         method='average',
                                         inplace=True,
                                         keep_all_metadata=False)
+        bl_grp,_,_ = self.uvn.get_redundancies(tol=tol)
+        n_bl = np.array([len(grp_t) for grp_t in bl_grp])
         for time_t in np.unique(self.uvn.time_array):
             idx_t = np.where(self.uvn.time_array == time_t)[0]
             self.uvn.data_array[idx_t, 0, 0, 0] /= np.sqrt(n_bl)

@@ -91,8 +91,8 @@ class ImgCube:
             print(i, freq_mhz, 'MHz', end=',')
             if norm:
                 d_diag = self.d_diag[i]
-                p_mat_n5_t = map_dic_n5['p_sum']*d_diag[:, np.newaxis]
-                p_mat_n6_t = map_dic_n6['p_sum']*d_diag[:, np.newaxis]
+                p_mat_n5_t = map_dic_n5['p_sum']*d_diag[np.newaxis, :]
+                p_mat_n6_t = map_dic_n6['p_sum']*d_diag[np.newaxis, :]
             else:
                 p_mat_n5_t = map_dic_n5['p_sum']
                 p_mat_n6_t = map_dic_n6['p_sum']

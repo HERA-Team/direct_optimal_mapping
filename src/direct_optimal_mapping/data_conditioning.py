@@ -29,10 +29,15 @@ class DataConditioning:
         uv_cross = uv.select(ant_str='cross', inplace=False)
         self.uv_1d = uv_cross.select(freq_chans=ifreq, polarizations=ipol, 
                                      inplace=False, keep_all_metadata=False)
-            
-        uv_auto = uv.select(ant_str='auto', inplace=False)
-        self.uv_auto = uv_auto.select(freq_chans=ifreq, polarizations=ipol,
-                                      inplace=False, keep_all_metadata=False)
+        try:
+            uv_auto = uv.select(ant_str='auto', inplace=False)
+            self.uv_auto = uv_auto.select(freq_chans=ifreq, polarizations=ipol,
+                                          inplace=False, keep_all_metadata=False)
+            self.has_auto = True
+        except:
+            print('No autos in the raw data.')
+            self.has_auto = False
+                  
         self.log = ['Init., freq. and pol. selected.',]
 
     def bl_selection(self, ew_proj=14.):
@@ -63,20 +68,23 @@ class DataConditioning:
         '''Calculating noise from the autocorrelations
         '''
         uvn = copy.deepcopy(self.uv_1d)
-        for bl in uvn.get_antpairs():
-            radiometer = np.sqrt(uvn.channel_width * uvn.get_nsamples(bl, squeeze='none') * np.mean(uvn.integration_time))
-            # get indices of this baseline
-            inds = uvn.antpair2ind(bl)
-            # insert uv_ready for this cross-corr
-            uvn.data_array[inds] = np.sqrt(self.uv_auto.get_data((bl[0], bl[0]), squeeze='none').real * \
-                                           self.uv_auto.get_data((bl[1], bl[1]), squeeze='none').real) / radiometer
-            # OR all flags
-            neg_auto_flag = (self.uv_auto.get_data((bl[0], bl[0]), squeeze='none') < 0) +\
-                            (self.uv_auto.get_data((bl[1], bl[1]), squeeze='none') < 0)
-            auto_flag = self.uv_auto.get_flags((bl[0], bl[0]), squeeze='none') +\
-                        self.uv_auto.get_flags((bl[1], bl[1]), squeeze='none')
-            uvn.flag_array[inds] += auto_flag + neg_auto_flag
-        self.uvn = uvn
+        if self.has_auto == True:
+            for bl in uvn.get_antpairs():
+                radiometer = np.sqrt(uvn.channel_width * uvn.get_nsamples(bl, squeeze='none') * np.mean(uvn.integration_time))
+                # get indices of this baseline
+                inds = uvn.antpair2ind(bl)
+                # insert uv_ready for this cross-corr
+                uvn.data_array[inds] = np.sqrt(self.uv_auto.get_data((bl[0], bl[0]), squeeze='none').real * \
+                                               self.uv_auto.get_data((bl[1], bl[1]), squeeze='none').real) / radiometer
+                # OR all flags
+                neg_auto_flag = (self.uv_auto.get_data((bl[0], bl[0]), squeeze='none') < 0) +\
+                                (self.uv_auto.get_data((bl[1], bl[1]), squeeze='none') < 0)
+                auto_flag = self.uv_auto.get_flags((bl[0], bl[0]), squeeze='none') +\
+                            self.uv_auto.get_flags((bl[1], bl[1]), squeeze='none')
+                uvn.flag_array[inds] += auto_flag + neg_auto_flag
+        else:
+            uvn.data_array.fill(1)
+        self.uvn = uvn    
         self.log.append('Noise calculated.')
         return uvn
     
@@ -107,9 +115,10 @@ class DataConditioning:
                                inplace=False, keep_all_metadata=False)
         self.uvn = self.uvn.select(blt_inds=idx_t, 
                                    inplace=False, keep_all_metadata=False)
-        idx_t = np.where(self.uv_auto.flag_array==False)[0]
-        self.uv_auto = self.uv_auto.select(blt_inds=idx_t, 
-                                           inplace=False, keep_all_metadata=False)
+        if self.has_auto == True:
+            idx_t = np.where(self.uv_auto.flag_array==False)[0]
+            self.uv_auto = self.uv_auto.select(blt_inds=idx_t, 
+                                               inplace=False, keep_all_metadata=False)
         self.log.append('Flag removed.')
         return self.uv_1d
         

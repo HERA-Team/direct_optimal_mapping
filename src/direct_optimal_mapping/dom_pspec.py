@@ -192,17 +192,17 @@ class PS_Calc:
         for i in range(p_tilda1.shape[1]):
             p_col = p_3d[:, i]
             p_col_reshape = p_col.reshape(shape)
-            p_col_tilda = np.fft.fftn(p_col_reshape, norm='forward').flatten()
-            p_tilda1[:, i] = p_col_tilda
+            p_col_tilda = np.fft.fftn(p_col_reshape, norm='ortho').flatten()
+            p_tilda1[:, i] = p_col_tilda# * self.voxel_volume
         p_tilda = np.zeros(p_tilda1.shape, dtype='complex128')
         for i in range(p_tilda.shape[0]):
             p_row = p_tilda1[i, :]
             p_row_reshape = p_row.reshape(shape)
-            p_row_tilda = np.fft.ifftn(p_row_reshape, norm='forward').flatten()
+            p_row_tilda = np.fft.ifftn(p_row_reshape, norm='ortho').flatten()
             p_row_tilda = np.conjugate(p_row_tilda)
-            p_tilda[i, :] = p_row_tilda
-        
-        self.h_mat = 0.5*np.abs(p_tilda)**2        
+            p_tilda[i, :] = p_row_tilda# * self.voxel_volume
+        p_tilda = p_tilda * self.voxel_volume       
+        self.h_mat = np.abs(p_tilda)**2
         self.p_tilda = p_tilda
         self.h_sum3d = np.sum(self.h_mat, axis=1).reshape(shape)
         if normalize:

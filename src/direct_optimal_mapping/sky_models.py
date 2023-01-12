@@ -34,14 +34,15 @@ def byrne21(freq_mhz, file='/nfs/esc/hera/sky_models/byrne182MHz_2020/diffuse_ma
     
     return nside_rb, hp_map
 
-def gleam_catalog(freq_mhz, nside, verbose=True):
+def gleam_catalog(freq_mhz, nside, verbose=True,
+                  folder='/nfs/esc/hera/sky_models/gleam'):
     '''
     flux density is calculated from the GLEAM catalogs
     '''
     # Point source set up
 
     ## GLEAM egc point source selection
-    hdul = fits.open('/nfs/ger/proj/hera/gleam/GLEAM_EGC_v2.fits')
+    hdul = fits.open(folder+'/GLEAM_EGC_v2.fits')
     hdr = hdul[0].header
     data = hdul[0].data
     hdr=hdul[1].header
@@ -57,7 +58,7 @@ def gleam_catalog(freq_mhz, nside, verbose=True):
     flux_jy_egc = int_flux200*(freq_mhz/200.)**(alpha)
 
     ## GLEAM galactic plane point source selection
-    hdul = fits.open('/nfs/ger/proj/hera/gleam/GLEAM_GAL.fits')
+    hdul = fits.open(folder+'/GLEAM_GAL.fits')
     hdr = hdul[0].header
     data = hdul[0].data
     hdr=hdul[1].header
@@ -73,7 +74,7 @@ def gleam_catalog(freq_mhz, nside, verbose=True):
     flux_jy_gal = int_flux200*(freq_mhz/200.)**(alpha)
 
     ## Bright sources
-    t_src = Table.read('/nfs/ger/home/zhileixu/scratch/210128_sky_models/bright_sources.txt', format='ascii')
+    t_src = Table.read(folder+'/A-team_bright_sources.txt', format='ascii')
     ra_bs = []
     dec_bs = []
     flux_jy_bs = []

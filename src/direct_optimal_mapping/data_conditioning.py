@@ -142,12 +142,14 @@ class DataConditioning:
                                           method='average',
                                           inplace=True,
                                           keep_all_metadata=False,)
-        # noise redundant averaging
+        # noise redundant averaging (averaging in variance)
+        self.uvn.data_array = np.square(self.uvn.data_array)
+        bl_grp,_,_,_ = self.uvn.get_redundancies(tol=tol, include_conjugates=True)
         self.uvn.compress_by_redundancy(tol=tol,
                                         method='average',
                                         inplace=True,
                                         keep_all_metadata=False)
-        bl_grp,_,_ = self.uvn.get_redundancies(tol=tol)
+        self.uvn.data_array = np.sqrt(self.uvn.data_array)
         n_bl = np.array([len(grp_t) for grp_t in bl_grp])
         for time_t in np.unique(self.uvn.time_array):
             idx_t = np.where(self.uvn.time_array == time_t)[0]

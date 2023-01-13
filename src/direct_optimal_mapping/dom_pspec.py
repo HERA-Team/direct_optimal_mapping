@@ -10,7 +10,8 @@ class PS_Calc:
     '''Class to calculate power spectrum from direct opitmal
     mapping data cubes
     '''
-    def __init__(self, data_cube_dic1, data_cube_dic2=None, taper_type='bh7'):
+    def __init__(self, data_cube_dic1, data_cube_dic2=None, 
+                 taper_type='bh7', perp_apdz=False):
         '''Initialization of the class
         
         Parameters
@@ -24,7 +25,9 @@ class PS_Calc:
         taper_type: str
             Taper function type along the frequency axis
             accepted inputs are 'tophat', 'hann', 'tukey', 'bh4', 'bh7', 'cs9', and 'cs11'
-        
+        perp_apdz: bool
+            aperdize along the RA and Dec direction with the same tapering function
+            
         Returns
         -------
         
@@ -36,6 +39,20 @@ class PS_Calc:
         self.data_cube1 = data_cube_dic1['data_cube_I']
         self.data_cube2 = data_cube_dic2['data_cube_I']
         self.taper_type = taper_type
+        self.perp_apdz = perp_apdz
+        self.nz, self.nx, self.ny = self.data_cube1.shape
+        
+        # Setting up the tapering function in image cube
+        z_taper = dspec.gen_window(self.taper_type, self.nz)
+        x_taper = dspec.gen_window(self.taper_type, self.nx)
+        y_taper = dspec.gen_window(self.taper_type, self.ny)
+        
+        self.taper_3d = np.ones((self.nz, self.nx, self.ny))
+        if self.taper_type != None:
+            self.taper_3d *= z_taper[:, np.newaxis, np.newaxis]
+            if self.perp_apdz:
+                self.taper_3d *= x_taper[np.newaxis, :, np.newaxis]
+                self.taper_3d *= y_taper[np.newaxis, np.newaxis, :]
         
         return
     
@@ -64,7 +81,6 @@ class PS_Calc:
         self.slope = beta*cos_conversion.dRperp_dtheta(z_avg)/(cos_conversion.dRpara_df(z_avg)*np.mean(freq_avg))
         self.y_intercept = buffer*cos_conversion.tau_to_kpara(z_avg)
         
-        self.nz, self.nx, self.ny = self.data_cube1.shape
         self.n_voxel = self.nx*self.ny*self.nz
 
         dist_cm_h_avg = np.mean(self.dist_cm_h)
@@ -80,42 +96,43 @@ class PS_Calc:
         
         return
     
-    def calc_fft(self, norm=True):
+    def calc_fft(self):
         '''Calculating the fft of the data cube with the taper applied
         along the frequency direction.
         
-        Parameters
-        ----------
-        norm: boolean
-            Normalized after the tapering, default: True
         '''
         
-        if self.taper_type == None:
-            data_cube1_tapered = self.data_cube1
-            data_cube2_tapered = self.data_cube2
-            norm_factor = 1.
-        else:
-            z_taper = dspec.gen_window(self.taper_type, self.nz)
-            self.taper_3d = z_taper[:, np.newaxis, np.newaxis]
-            data_cube1_tapered = self.data_cube1 * self.taper_3d
-            data_cube2_tapered = self.data_cube2 * self.taper_3d
-            norm_factor = self.nz/np.sum(self.taper_3d**2)
-#             self.kpara_window = np.fft.fftn(z_window)
-        
-#         x_window = dspec.gen_window(window, self.nx)
-#         data_cube1_tapered = data_cube1_tapered * x_window[np.newaxis, :, np.newaxis]
-#         data_cube2_tapered = data_cube2_tapered * x_window[np.newaxis, :, np.newaxis]
-        
-#         y_window = dspec.gen_window(window, self.ny)
-#         data_cube1_tapered = data_cube1_tapered * y_window[np.newaxis, np.newaxis, :]
-#         data_cube2_tapered = data_cube2_tapered * y_window[np.newaxis, np.newaxis, :]
+#         if self.taper_type == None:
+#             data_cube1_tapered = self.data_cube1
+#             data_cube2_tapered = self.data_cube2
+#             norm_factor = 1.
+#         else:
+#             z_taper = dspec.gen_window(self.taper_type, self.nz)
+#             self.taper_3d = z_taper[:, np.newaxis, np.newaxis]
+#             data_cube1_tapered = self.data_cube1 * self.taper_3d
+#             data_cube2_tapered = self.data_cube2 * self.taper_3d
+#             norm_factor = self.nz/np.sum(self.taper_3d**2)
+#             self.kpara_taper = np.fft.fftn(z_taper)
+#         if self.perp_apdz:
+#             x_window = dspec.gen_window(self.taper_type, self.nx)
+#             data_cube1_tapered = data_cube1_tapered * x_window[np.newaxis, :, np.newaxis]
+#             data_cube2_tapered = data_cube2_tapered * x_window[np.newaxis, :, np.newaxis]
+
+#             y_window = dspec.gen_window(self.taper_type, self.ny)
+#             data_cube1_tapered = data_cube1_tapered * y_window[np.newaxis, np.newaxis, :]
+#             data_cube2_tapered = data_cube2_tapered * y_window[np.newaxis, np.newaxis, :]
+        data_cube1_tapered = self.data_cube1 * self.taper_3d
+        data_cube2_tapered = self.data_cube2 * self.taper_3d
         
         self.fft3d1 = (self.voxel_volume) * np.fft.fftn(data_cube1_tapered, norm='backward')
         self.fft3d2 = (self.voxel_volume) * np.fft.fftn(data_cube2_tapered, norm='backward')
         self.ps3d = self.fft3d1.conjugate() * self.fft3d2 / (self.n_voxel * self.voxel_volume)
+#         self.fft3d1 = np.fft.fftn(data_cube1_tapered, norm='backward')
+#         self.fft3d2 = np.fft.fftn(data_cube2_tapered, norm='backward')
+#         self.ps3d = self.fft3d1.conjugate() * self.fft3d2
         self.ps3d = self.ps3d.real
-        if norm:
-            self.ps3d = self.ps3d * norm_factor
+#         if norm:
+#             self.ps3d = self.ps3d * norm_factor
                 
         return
     
@@ -162,7 +179,7 @@ class PS_Calc:
         return
 
     
-    def calc_p_tilda(self, p_dic, normalize=True, perp_apodization=False):
+    def calc_p_tilda(self, p_dic, normalize=True):
         '''FFT of the 3d p_mat
 
         Parameter
@@ -170,23 +187,25 @@ class PS_Calc:
         p_dic: dictioinary
             storing the p matrix for each frequencc, 
             N_freq X N_pix X N_pix
-        perp_apodization: Boolean
-            Perform apodization along the perpendicular direction
         normalize: Boolean
             whether normalize ps3d with the h_sum3d
 
         Return
         ------
         '''
-        z_taper = dspec.gen_window(self.taper_type, self.nz)
+#         z_taper = dspec.gen_window(self.taper_type, self.nz)
         shape = [self.nz, self.nx, self.ny]
-        p_mat_I_tapered = p_dic['p_mat_I'] * z_taper[:, np.newaxis, np.newaxis]       
-#         if perp_apodization:
-#             x_window = dspec.gen_window(self.window, self.nx)
-#             y_window = dspec.gen_window(self.window, self.ny)
+#         p_mat_I_tapered = p_dic['p_mat_I'] * z_taper[:, np.newaxis, np.newaxis]       
+#         if self.perp_apdz:
+#             x_window = dspec.gen_window(self.taper_type, self.nx)
+#             y_window = dspec.gen_window(self.taper_type, self.ny)
 #             p_mat_I_tapered = p_mat_I_tapered * x_window[np.newaxis, :, np.newaxis]
 #             p_mat_I_tapered = p_mat_I_tapered * y_window[np.newaxis, np.newaxis, :]
             
+        self.taper_3d_p = self.taper_3d.reshape((self.nz, self.nx * self.ny))
+        p_mat_I_tapered = p_dic['p_mat_I'] * np.expand_dims(self.taper_3d_p, axis=1)
+        p_mat_I_tapered *= np.expand_dims(self.taper_3d_p, axis=2)
+    
         p_3d = scipy.linalg.block_diag(*p_mat_I_tapered)
         p_tilda1 = np.zeros(p_3d.shape, dtype='complex128')
         for i in range(p_tilda1.shape[1]):

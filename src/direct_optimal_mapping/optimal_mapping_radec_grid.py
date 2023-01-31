@@ -128,10 +128,10 @@ class OptMapping:
             if feed is None:
                 if np.mean(self.times) < 2458362: #2018-09-01
                     self.feed_type = 'dipole'
-                    self.beam_file = self.beam_folder+'/NF_HERA_Vivaldi_efield_beam.fits'
+                    self.beam_file = self.beam_folder+'/NF_HERA_Dipole_efield_beam_high-precision.fits'
                 else:
                     self.feed_type = 'vivaldi'
-                    self.beam_file = self.beam_folder+'/NF_HERA_Dipole_efield_beam_high-precision.fits'
+                    self.beam_file = self.beam_folder+'/NF_HERA_Vivaldi_efield_beam.fits'
             else:
                 self.feed_type = feed            
         else:

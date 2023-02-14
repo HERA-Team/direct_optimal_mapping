@@ -11,7 +11,7 @@ class PS_Calc:
     mapping data cubes
     '''
     def __init__(self, data_cube_dic1, data_cube_dic2=None, 
-                 taper_type='bh7', perp_apdz=False):
+                 par_taper='bh', per_taper='tukey'):
         '''Initialization of the class
         
         Parameters
@@ -22,12 +22,11 @@ class PS_Calc:
         data_cube_dic2: dictionary or None
             identical to data_cube_dic1 with independent noise propertie. 
             If None, data_cube_dic2 = data_cube_dic1
-        taper_type: str
-            Taper function type along the frequency axis
+        par_taper, per_taper: str
+            Taper function type along the frequency axis and across the sky-plane
             accepted inputs are 'tophat', 'hann', 'tukey', 'bh4', 'bh7', 'cs9', and 'cs11'
-        perp_apdz: bool
-            aperdize along the RA and Dec direction with the same tapering function
-            
+            No tapering when None is given
+
         Returns
         -------
         
@@ -38,21 +37,26 @@ class PS_Calc:
         self.px_dic = data_cube_dic1['px_dic']
         self.data_cube1 = data_cube_dic1['data_cube_I']
         self.data_cube2 = data_cube_dic2['data_cube_I']
-        self.taper_type = taper_type
-        self.perp_apdz = perp_apdz
+        self.par_taper = par_taper
+        self.per_taper = per_taper
         self.nz, self.nx, self.ny = self.data_cube1.shape
         
         # Setting up the tapering function in image cube
-        z_taper = dspec.gen_window(self.taper_type, self.nz)
-        x_taper = dspec.gen_window(self.taper_type, self.nx)
-        y_taper = dspec.gen_window(self.taper_type, self.ny)
+        if self.par_taper is None:
+            z_taper = np.ones(self.nz)
+        else:
+            z_taper = dspec.gen_window(self.par_taper, self.nz)
+        if self.per_taper is None:
+            x_taper = np.ones(self.nx)
+            y_taper = np.ones(self.ny)
+        else:
+            x_taper = dspec.gen_window(self.per_taper, self.nx)
+            y_taper = dspec.gen_window(self.per_taper, self.ny)
         
         self.taper_3d = np.ones((self.nz, self.nx, self.ny))
-        if self.taper_type != None:
-            self.taper_3d *= z_taper[:, np.newaxis, np.newaxis]
-            if self.perp_apdz:
-                self.taper_3d *= x_taper[np.newaxis, :, np.newaxis]
-                self.taper_3d *= y_taper[np.newaxis, np.newaxis, :]
+        self.taper_3d *= z_taper[:, np.newaxis, np.newaxis]
+        self.taper_3d *= x_taper[np.newaxis, :, np.newaxis]
+        self.taper_3d *= y_taper[np.newaxis, np.newaxis, :]
         
         return
     
@@ -124,12 +128,12 @@ class PS_Calc:
         data_cube1_tapered = self.data_cube1 * self.taper_3d
         data_cube2_tapered = self.data_cube2 * self.taper_3d
         
-        self.fft3d1 = (self.voxel_volume) * np.fft.fftn(data_cube1_tapered, norm='backward')
-        self.fft3d2 = (self.voxel_volume) * np.fft.fftn(data_cube2_tapered, norm='backward')
-        self.ps3d = self.fft3d1.conjugate() * self.fft3d2 / (self.n_voxel * self.voxel_volume)
-#         self.fft3d1 = np.fft.fftn(data_cube1_tapered, norm='backward')
-#         self.fft3d2 = np.fft.fftn(data_cube2_tapered, norm='backward')
-#         self.ps3d = self.fft3d1.conjugate() * self.fft3d2
+#         self.fft3d1 = (self.voxel_volume) * np.fft.fftn(data_cube1_tapered, norm='ortho')
+#         self.fft3d2 = (self.voxel_volume) * np.fft.fftn(data_cube2_tapered, norm='ortho')
+#         self.ps3d = self.fft3d1.conjugate() * self.fft3d2 * self.voxel_volume
+        self.fft3d1 = np.fft.fftn(data_cube1_tapered, norm='ortho')
+        self.fft3d2 = np.fft.fftn(data_cube2_tapered, norm='ortho')
+        self.ps3d = self.fft3d1.conjugate() * self.fft3d2 * self.voxel_volume
         self.ps3d = self.ps3d.real
 #         if norm:
 #             self.ps3d = self.ps3d * norm_factor
@@ -218,9 +222,9 @@ class PS_Calc:
             p_row = p_tilda1[i, :]
             p_row_reshape = p_row.reshape(shape)
             p_row_tilda = np.fft.ifftn(p_row_reshape, norm='ortho').flatten()
-            p_row_tilda = np.conjugate(p_row_tilda)
+#             p_row_tilda = np.conjugate(p_row_tilda)
             p_tilda[i, :] = p_row_tilda# * self.voxel_volume
-        p_tilda = p_tilda * self.voxel_volume       
+#         p_tilda = p_tilda * self.voxel_volume       
         self.h_mat = np.abs(p_tilda)**2
         self.p_tilda = p_tilda
         self.h_sum3d = np.sum(self.h_mat, axis=1).reshape(shape)

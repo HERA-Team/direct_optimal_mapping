@@ -22,7 +22,8 @@ class DataConditioning:
         ipol: integer [-5 - -8]
             select the linear polarization (-5:-8 (XX, YY, XY, YX))
         '''
-        uv.unproject_phase()
+        if uv.phase_type != 'drift':
+            raise RuntimeError('Phase_type has to be drift for the data.')
         self.ifreq = ifreq
         self.ipol = ipol
         uv_cross = uv.select(ant_str='cross', inplace=False)

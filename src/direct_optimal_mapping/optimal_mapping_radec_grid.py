@@ -6,6 +6,8 @@ from astropy.time import Time
 from astropy import constants
 from astropy import units as u
 from astropy.coordinates import EarthLocation, AltAz, SkyCoord, TETE
+from astropy.modeling.functional_models import AiryDisk2D
+
 import copy
 import healpy as hp
 from pyuvdata import UVData, UVBeam
@@ -25,15 +27,18 @@ class SkyPx:
     
     Methods
     -------
-    calc_px(ra_ctr_deg, ra_rng_deg, n_ra,
+    calc_radec_pix(ra_ctr_deg, ra_rng_deg, n_ra,
             dec_ctr_deg, dec_rng_deg, n_dec):
         Calculate the location and solid angle of ra/dec grids
     
+    calc_healpix(nside, ra_ctr_deg, dec_ctr_deg, radius_deg)
+        Calculate the the location and solid angle of the healpix
+            
     '''
     def __init__(self):
         return
     
-    def calc_px(self, ra_ctr_deg, ra_rng_deg, n_ra,
+    def calc_radec_pix(self, ra_ctr_deg, ra_rng_deg, n_ra,
                 dec_ctr_deg, dec_rng_deg, n_dec):
         '''Initiating the SkyPix given center location, range, and pixel number
         along RA and Dec
@@ -59,11 +64,6 @@ class SkyPx:
         px_dic: dictionary
             Containing the ra/dec locations and the solid angle of
             the pixels
-            
-        Attritute
-        ---------
-        self.px_dic: as px_dic
-        
         '''
         edge_ra, edge_dec = np.mgrid[ra_ctr_deg - ra_rng_deg/2.:ra_ctr_deg + ra_rng_deg/2.:(n_ra+1)*1j,
                                      dec_ctr_deg - dec_rng_deg/2.:dec_ctr_deg + dec_rng_deg/2.:(n_dec+1)*1j]
@@ -77,9 +77,40 @@ class SkyPx:
         ctr_ra_deg = edge_ra[:-1, :-1] + ra_res_deg/2.
         ctr_dec_deg = edge_dec[:-1, :-1] + dec_res_deg/2.
         
-        self.px_dic = {'ra_deg': ctr_ra_deg, 'dec_deg': ctr_dec_deg, 'sa_sr': delta_sa}
+        px_dic = {'ra_deg': ctr_ra_deg, 'dec_deg': ctr_dec_deg, 'sa_sr': delta_sa}
 
-        return self.px_dic
+        return px_dic
+    
+    def calc_healpix(nside, ra_ctr_deg, dec_ctr_deg, radius_deg):
+        '''Initiating the SkyPix given nside, center location, and radius in healpixels
+        
+        Parameters
+        ----------
+        nside: int
+            nside of the healpixels
+        ra_ctr_deg: float
+            ra central location of the sky patch, in degrees
+        dec_ctr_deg: float
+            dec central location of the sky patch, in degrees
+        radius_deg: float
+            radius of the sky patch, in degrees
+        
+        Return
+        ------
+        px_dic: dictionary
+            Containing the healpix locations and the solid angle of
+            the pixels
+        '''
+        hp_sky_cover = np.zeros(hp.nside2npix(nside), dtype=np.bool8)
+        for lst_t in lst_ls:
+        ctr_vec = hp.ang2vec(ra_ctr_deg, dec_ctr_deg, lonlat=True,)
+        hp_idx_t = hp.query_disc(nside, ctr_vec, np.radians(radius_deg), inclusive=True)
+        hp_sky_cover[hp_idx_t] = True
+        ra_deg, dec_deg = hp.pix2ang(nside, hp_idx_t, lonlat=True)
+        sa_sr = np.array([hp.nside2pixarea(nside)] * len(ra_deg))
+        px_dic = {'ra_deg': ra_deg, 'dec_deg': dec_deg, 'sa_sr': sa_sr}
+
+        return px_dic       
 
 class OptMapping:
     '''Optimal Mapping Object
@@ -208,8 +239,9 @@ class OptMapping:
         '''
 
         pyuvbeam = UVBeam()
-        pyuvbeam.read_beamfits(beam_file)        
-        pyuvbeam.efield_to_power()
+        pyuvbeam.read_beamfits(beam_file)
+        if pyuvbeam.beam_type == 'efield':
+            pyuvbeam.efield_to_power()
         pyuvbeam.select(polarizations=self.uv.polarization_array)
         pyuvbeam.peak_normalize()
         pyuvbeam.interpolation_function = 'az_za_simple'
@@ -218,6 +250,29 @@ class OptMapping:
         # attribute assignment
         self.pyuvbeam = pyuvbeam
         return
+    
+    def airy_beam(self, az, alt, freq, dish_dia=12):
+        '''Calculating the circularly symmetric Airy beam
+        
+        Parameters
+        ----------
+        az, alt: azimuth and altitude of the sky position, in radians
+        freq: frequency, in Hz
+        dish_dia: dish diameter, in meters
+            Default value is 12m for HERA dishes
+        
+        Return
+        ------
+        Airy beam values
+        '''
+        airy = AiryDisk2D()
+        wv = constants.c.value/freq
+        airy_radius = 1.22*wv/dish_dia
+        peak_amp = 1
+        # airy.evaluate(x, y, amplitude, x_0, y_0, radius)
+        return airy.evaluate(np.cos(alt)*np.cos(az),
+                             np.cos(alt)*np.sin(az), 
+                             peak_amp, 0, 0, airy_radius)
     
     def set_a_mat(self, uvw_sign=1, apply_beam=True):
         '''Calculating A matrix, covering the range defined by the px_dic object
@@ -246,11 +301,15 @@ class OptMapping:
             lmn_t = np.array([np.cos(alt_t)*np.sin(az_t), 
                               np.cos(alt_t)*np.cos(az_t), 
                               np.sin(alt_t)])
-            pyuvbeam_interp,_ = self.pyuvbeam.interp(az_array=np.mod(np.pi/2. - az_t, 2*np.pi), 
-                                                     za_array=np.pi/2. - alt_t, 
-                                                     az_za_grid=False, freq_array= freq_array,
-                                                     reuse_spline=True, check_azza_domain=False)
-            beam_map_t = pyuvbeam_interp[0, 0, 0, 0].real
+#             pyuvbeam_interp,_ = self.pyuvbeam.interp(az_array=np.mod(np.pi/2. - az_t, 2*np.pi), 
+#                                                      za_array=np.pi/2. - alt_t, 
+#                                                      az_za_grid=False, freq_array= freq_array,
+#                                                      reuse_spline=True, check_azza_domain=False)
+#             beam_map_t = pyuvbeam_interp[0, 0, 0, 0].real
+            
+            print('Airy beam.')
+            beam_map_t = self.airy_beam(az_t, alt_t, freq_array[0])
+            
             idx_time = np.where(self.uv.time_array == time_t)[0]
             self.phase_mat[idx_time] = uvw_sign*2*np.pi/self.wavelength*(self.uv.uvw_array[idx_time]@lmn_t)
             self.beam_mat[idx_time] = np.tile(beam_map_t, idx_time.size).reshape(idx_time.size, -1)

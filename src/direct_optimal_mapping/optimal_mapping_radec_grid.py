@@ -76,8 +76,10 @@ class SkyPx:
         dec_res_deg = dec_rng_deg/n_dec
         ctr_ra_deg = edge_ra[:-1, :-1] + ra_res_deg/2.
         ctr_dec_deg = edge_dec[:-1, :-1] + dec_res_deg/2.
-        
-        px_dic = {'ra_deg': ctr_ra_deg, 'dec_deg': ctr_dec_deg, 'sa_sr': delta_sa}
+        ra_deg = ctr_ra_deg.flatten()
+        dec_deg = ctr_dec_deg.flatten()        
+        px_id = np.array(['%.2f,%.2f'%(ra_deg[i], dec_deg[i]) for i in range(len(ra_deg))])
+        px_dic = {'ra_deg': ctr_ra_deg, 'dec_deg': ctr_dec_deg, 'sa_sr': delta_sa, 'px_id':px_id.reshape(ctr_ra_deg.shape)}
 
         return px_dic
     
@@ -106,8 +108,8 @@ class SkyPx:
         hp_idx_t = hp.query_disc(nside, ctr_vec, np.radians(radius_deg), inclusive=True)
         ra_deg, dec_deg = hp.pix2ang(nside, hp_idx_t, lonlat=True)
         sa_sr = np.array([hp.nside2pixarea(nside)] * len(ra_deg))
-        px_dic = {'ra_deg': ra_deg, 'dec_deg': dec_deg, 'sa_sr': sa_sr}
-        self.idx = hp_idx_t
+        px_id = np.array(['%.2f,%.2f'%(ra_deg[i], dec_deg[i]) for i in range(len(ra_deg))])
+        px_dic = {'ra_deg': ra_deg, 'dec_deg': dec_deg, 'sa_sr': sa_sr, 'px_id': px_id}
 
         return px_dic       
 
@@ -116,7 +118,7 @@ class OptMapping:
     
     '''
     
-    def __init__(self, uv, px_dic, epoch='J2000', feed=None,
+    def __init__(self, uv, px_dic_outer, px_dic_inner=None, epoch='J2000', feed=None,
                  beam_file = None,
                  beam_folder='/nfs/esc/hera/zhileixu/git_beam/HERA-Beams/NicolasFagnoniBeams'):
         '''Init function for basic setup
@@ -125,8 +127,11 @@ class OptMapping:
         ----------
         uv: pyuvdata object
             UVData data in the pyuvdata format, data_array only has the blt dimension
-        px_dic: dictionary
-            pixel dictionary with ra/dec and solid angle information
+        px_dic_outer: dictionary
+            pixel dictionary with ra/dec and solid angle information of the outer sky coverage
+        px_dic_inner: dictionary
+            Default: None, then same as the pix_dic_outer. Otherwise, it defines a smaller sky
+            coverage for the map facet
         epoch: str
             epoch of the map, can be either 'J2000' or 'Current'
         feed: str
@@ -166,10 +171,17 @@ class OptMapping:
                 self.feed_type = feed            
         else:
             self.beam_file = beam_file
+            
+        if px_dic_inner is None:
+            px_dic_inner = px_dic_outer
+            self.idx_inner_in_outer = np.ones(len(px_dic_inner['px_id'].flatten()))
+        else:                                          
+            self.idx_inner_in_outer = np.array([np.where(px_dic_outer['px_id'].flatten() == px_dic_inner['px_id'].flatten()[i])[0][0] 
+                                                for i in range(len(px_dic_inner['px_id'].flatten()))])
 
-        self.ra = np.radians(px_dic['ra_deg']).flatten()
-        self.dec = np.radians(px_dic['dec_deg']).flatten()
-        self.px_sa = px_dic['sa_sr'].flatten()
+        self.ra = np.radians(px_dic_outer['ra_deg']).flatten()
+        self.dec = np.radians(px_dic_outer['dec_deg']).flatten()
+        self.px_sa = px_dic_outer['sa_sr'].flatten()
         self.npx = len(self.px_sa)
         
         az, alt = self._radec2azalt(self.ra, self.dec,
@@ -374,7 +386,7 @@ class OptMapping:
         if not hasattr(self, 'a_mat'):
             raise AttributeError('A matrix is not set up.')
 
-        p_mat1 = np.conjugate(self.a_mat.T)
+        p_mat1 = np.conjugate(self.a_mat[:, self.idx_inner_in_outer].T)
         p_mat2 = np.diag(self.inv_noise_mat)[:, None]*self.a_mat 
         #Equivalent to inv_noise_mat@a_mat, assuming diagonal noise matrix
 

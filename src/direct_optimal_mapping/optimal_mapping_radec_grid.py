@@ -81,7 +81,7 @@ class SkyPx:
 
         return px_dic
     
-    def calc_healpix(nside, ra_ctr_deg, dec_ctr_deg, radius_deg):
+    def calc_healpix(self, nside, ra_ctr_deg, dec_ctr_deg, radius_deg):
         '''Initiating the SkyPix given nside, center location, and radius in healpixels
         
         Parameters
@@ -102,13 +102,12 @@ class SkyPx:
             the pixels
         '''
         hp_sky_cover = np.zeros(hp.nside2npix(nside), dtype=np.bool8)
-        for lst_t in lst_ls:
         ctr_vec = hp.ang2vec(ra_ctr_deg, dec_ctr_deg, lonlat=True,)
         hp_idx_t = hp.query_disc(nside, ctr_vec, np.radians(radius_deg), inclusive=True)
-        hp_sky_cover[hp_idx_t] = True
         ra_deg, dec_deg = hp.pix2ang(nside, hp_idx_t, lonlat=True)
         sa_sr = np.array([hp.nside2pixarea(nside)] * len(ra_deg))
         px_dic = {'ra_deg': ra_deg, 'dec_deg': dec_deg, 'sa_sr': sa_sr}
+        self.idx = hp_idx_t
 
         return px_dic       
 

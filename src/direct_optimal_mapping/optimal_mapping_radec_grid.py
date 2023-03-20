@@ -79,7 +79,8 @@ class SkyPx:
         ra_deg = ctr_ra_deg.flatten()
         dec_deg = ctr_dec_deg.flatten()        
         px_id = np.array(['%.2f,%.2f'%(ra_deg[i], dec_deg[i]) for i in range(len(ra_deg))])
-        px_dic = {'ra_deg': ctr_ra_deg, 'dec_deg': ctr_dec_deg, 'sa_sr': delta_sa, 'px_id':px_id.reshape(ctr_ra_deg.shape)}
+        px_dic = {'ra_deg': ctr_ra_deg, 'dec_deg': ctr_dec_deg, 'sa_sr': delta_sa, 
+                  'px_id':px_id.reshape(ctr_ra_deg.shape)}
 
         return px_dic
     
@@ -109,7 +110,8 @@ class SkyPx:
         ra_deg, dec_deg = hp.pix2ang(nside, hp_idx_t, lonlat=True)
         sa_sr = np.array([hp.nside2pixarea(nside)] * len(ra_deg))
         px_id = np.array(['%.2f,%.2f'%(ra_deg[i], dec_deg[i]) for i in range(len(ra_deg))])
-        px_dic = {'ra_deg': ra_deg, 'dec_deg': dec_deg, 'sa_sr': sa_sr, 'px_id': px_id}
+        px_dic = {'ra_deg': ra_deg, 'dec_deg': dec_deg, 'sa_sr': sa_sr, 
+                  'px_id': px_id, 'hp_idx': hp_idx_t}
 
         return px_dic       
 

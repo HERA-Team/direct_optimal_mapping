@@ -84,19 +84,20 @@ class SkyPx:
 
         return px_dic
     
-    def calc_healpix(self, nside, ra_ctr_deg, dec_ctr_deg, radius_deg):
+    def calc_healpix(self, nside, obstime, site, radius_deg, epoch='J2000'):
         '''Initiating the SkyPix given nside, center location, and radius in healpixels
         
         Parameters
         ----------
         nside: int
             nside of the healpixels
-        ra_ctr_deg: float
-            ra central location of the sky patch, in degrees
-        dec_ctr_deg: float
-            dec central location of the sky patch, in degrees
+        obstime: Astropy Time Object
+            in form of JD
+        site: Astropy Earthlocation Object
         radius_deg: float
             radius of the sky patch, in degrees
+        epoch: str
+            epoch of the coordinates, can be either 'J2000' or 'Current'
         
         Return
         ------
@@ -104,13 +105,24 @@ class SkyPx:
             Containing the healpix locations and the solid angle of
             the pixels
         '''
-        hp_sky_cover = np.zeros(hp.nside2npix(nside), dtype=np.bool8)
-        ctr_vec = hp.ang2vec(ra_ctr_deg, dec_ctr_deg, lonlat=True,)
-        hp_idx_t = hp.query_disc(nside, ctr_vec, np.radians(radius_deg), inclusive=True)
-        ra_deg, dec_deg = hp.pix2ang(nside, hp_idx_t, lonlat=True)
-        sa_sr = np.array([hp.nside2pixarea(nside)] * len(ra_deg))
-        px_id = np.array(['%.2f,%.2f'%(ra_deg[i], dec_deg[i]) for i in range(len(ra_deg))])
-        px_dic = {'ra_deg': ra_deg, 'dec_deg': dec_deg, 'sa_sr': sa_sr, 
+        ra_deg, dec_deg = hp.pix2ang(nside, range(hp.nside2npix(nside)), lonlat=True)
+        ra = np.radians(ra_deg)
+        dec = np.radians(dec_deg)
+        
+        aa = AltAz(location=site, obstime=obstime)
+        if epoch == 'J2000':
+            c = SkyCoord(ra=ra, dec=dec, unit='radian', frame=TETE(obstime=epoch))
+        elif epoch == 'Current':
+            c = SkyCoord(ra=ra, dec=dec, unit='radian', frame=TETE(obstime=obstime))
+        else:
+            print('Please provide a proper epoch: either J2000 or Current')
+        az = np.radians(c.transform_to(aa).az.value)
+        alt = np.radians(c.transform_to(aa).alt.value)
+        
+        hp_idx_t = np.where(alt > np.radians(90-radius_deg))[0]
+        sa_sr = np.array([hp.nside2pixarea(nside)] * len(hp_idx_t))
+        px_id = np.array(['%.2f,%.2f'%(ra_deg[i], dec_deg[i]) for i in hp_idx_t])
+        px_dic = {'ra_deg': ra_deg[hp_idx_t], 'dec_deg': dec_deg[hp_idx_t], 'sa_sr': sa_sr, 
                   'px_id': px_id, 'hp_idx': hp_idx_t}
 
         return px_dic       
@@ -121,7 +133,7 @@ class OptMapping:
     '''
     
     def __init__(self, uv, px_dic_outer, px_dic_inner=None, epoch='J2000', feed=None,
-                 beam_file = None,
+                 beam_file=None,
                  beam_folder='/nfs/esc/hera/zhileixu/git_beam/HERA-Beams/NicolasFagnoniBeams'):
         '''Init function for basic setup
          
@@ -223,12 +235,12 @@ class OptMapping:
         az, alt: 1d array (float)
             arrays containing the converted az, alt values (in radians)
         '''
-        obs_time = Time(time, format='jd')
-        aa = AltAz(location=self.hera_site, obstime=obs_time)
+        obstime = Time(time, format='jd')
+        aa = AltAz(location=self.hera_site, obstime=obstime)
         if self.equinox == 'J2000':
             c = SkyCoord(ra=ra, dec=dec, unit='radian', frame=TETE(obstime=self.equinox))
         elif self.equinox == 'Current':
-            c = SkyCoord(ra=ra, dec=dec, unit='radian', frame=TETE(obstime=obs_time))
+            c = SkyCoord(ra=ra, dec=dec, unit='radian', frame=TETE(obstime=obstime))
         else:
             print('Please provide a proper epoch: either J2000 or Current')
         az = np.radians(c.transform_to(aa).az.value)

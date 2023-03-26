@@ -18,8 +18,7 @@ from scipy.interpolate import RectSphereBivariateSpline as RSBS
 from scipy.interpolate import RectBivariateSpline as RBS
 
 class SkyPx:
-    '''Sky pixel object defining the sky pixels in
-    ra/dec regular grid
+    '''Sky pixel object defining the sky pixels
     
     ...
     Attributes
@@ -31,7 +30,7 @@ class SkyPx:
             dec_ctr_deg, dec_rng_deg, n_dec):
         Calculate the location and solid angle of ra/dec grids
     
-    calc_healpix(nside, ra_ctr_deg, dec_ctr_deg, radius_deg)
+    calc_healpix(nside, obstime, site, radius_deg)
         Calculate the the location and solid angle of the healpix
             
     '''
@@ -191,7 +190,7 @@ class OptMapping:
             
         if px_dic_inner is None:
             px_dic_inner = px_dic_outer
-            self.idx_inner_in_outer = np.ones(len(px_dic_inner['px_id'].flatten()))
+            self.idx_inner_in_outer = np.arange(len(px_dic_inner['px_id'].flatten()))
         else:                                          
             self.idx_inner_in_outer = np.array([np.where(px_dic_outer['px_id'].flatten() == px_dic_inner['px_id'].flatten()[i])[0][0] 
                                                 for i in range(len(px_dic_inner['px_id'].flatten()))])

@@ -211,7 +211,8 @@ class OptMappingHorizon:
 
         pyuvbeam = UVBeam()
         pyuvbeam.read_beamfits(beam_file)
-        pyuvbeam.efield_to_power()
+        if pyuvbeam.beam_type == 'efield':
+            pyuvbeam.efield_to_power()        
         pyuvbeam.select(polarizations=self.uv.polarization_array)
         #pyuvbeam.select(polarizations=[-6,])
         #print(pyuvbeam.polarization_array)

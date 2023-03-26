@@ -8,15 +8,15 @@ class ImgCube:
     '''Converting individual maps into an image cube,
     also convert the image cube into mK units
     '''
-    def __init__(self, files_n5, files_n6, syn_sa_file):
+    def __init__(self, files_n5, files_n6):
         '''Initialize the object
         '''
         self.files_n5 = files_n5
         self.files_n6 = files_n6
-        with open(syn_sa_file, 'rb') as f_t:
-            self.syn_sa_dic = pickle.load(f_t)            
-        self.sa_interp = interpolate.interp1d(self.syn_sa_dic['freq_mhz'], self.syn_sa_dic['sa'],
-                                              bounds_error=False, fill_value='extrapolate')
+#         with open(syn_sa_file, 'rb') as f_t:
+#             self.syn_sa_dic = pickle.load(f_t)            
+#         self.sa_interp = interpolate.interp1d(self.syn_sa_dic['freq_mhz'], self.syn_sa_dic['sa'],
+#                                               bounds_error=False, fill_value='extrapolate')
         return
         
     def image_cube_calc(self):
@@ -33,12 +33,12 @@ class ImgCube:
                 map_dic_n6 = pickle.load(f_t)
 
             freq_mhz = float(re.search('_(......)MHz', file_n5_t).group(1))
-            syn_sa = self.sa_interp(freq_mhz)
+#             syn_sa = self.sa_interp(freq_mhz)
             print(i, freq_mhz, 'MHz', end=',')
             
             # normalization d calculation
             d_diag = 1/(map_dic_n5['beam_weight_sum'] * np.square(map_dic_n5['px_dic']['sa_sr']).flatten()) # vis -> Jy/sr
-#             d_diag = d_diag/syn_sa # Jy/beam -> Jy/sr
+#             d_diag = 1/(map_dic_n5['beam_weight_sum'] * map_dic_n5['px_dic']['sa_sr'].flatten() * syn_sa) # vis -> Jy/sr
             jysr2mk = 1e-26*const.c**2/2/(1e6*freq_mhz)**2/const.k_B*1e3
             d_diag = d_diag * jysr2mk.value # Jy/sr -> mK
 

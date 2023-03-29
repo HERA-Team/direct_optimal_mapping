@@ -32,18 +32,28 @@ class ImgCube:
             with open(file_n6_t, 'rb') as f_t:
                 map_dic_n6 = pickle.load(f_t)
 
-            freq_mhz = float(re.search('_(......)MHz', file_n5_t).group(1))
+#             freq_mhz = float(re.search('_(......)MHz', file_n5_t).group(1))
+#             freq_mhz = np.linspace(100, 200, 1024, endpoint=False)[515:695][i]
+            
+            freq_mhz = map_dic_n5['freq']/1e6
+            bl_max = map_dic_n5['bl_max']
+            radius2ctr = map_dic_n5['radius2ctr']
+            syn_beam_size = 1.22*const.c.value/map_dic_n5['freq']/(bl_max * np.cos(radius2ctr))
+            beam_dilution = syn_beam_size**2/map_dic_n5['px_dic']['sa_sr']
+            beam_dilution = beam_dilution.flatten()
+
 #             syn_sa = self.sa_interp(freq_mhz)
             print(i, freq_mhz, 'MHz', end=',')
             
             # normalization d calculation
-            d_diag = 1/(map_dic_n5['beam_weight_sum'] * np.square(map_dic_n5['px_dic']['sa_sr']).flatten()) # vis -> Jy/sr
+            d_diag = 1/map_dic_n5['beam_weight_sum']# * np.square(map_dic_n5['px_dic']['sa_sr']).flatten()) # vis -> Jy/sr
+            self.px_sa = map_dic_n5['px_dic']['sa_sr'].flatten()
 #             d_diag = 1/(map_dic_n5['beam_weight_sum'] * map_dic_n5['px_dic']['sa_sr'].flatten() * syn_sa) # vis -> Jy/sr
-            jysr2mk = 1e-26*const.c**2/2/(1e6*freq_mhz)**2/const.k_B*1e3
-            d_diag = d_diag * jysr2mk.value # Jy/sr -> mK
+            jy2mKsr = 1e-26*const.c.value**2/2/(1e6*freq_mhz)**2/const.k_B.value*1e3
+#             d_diag = d_diag * jysr2mk.value # Jy/sr -> mK
 
-            map_n5_t = map_dic_n5['map_sum'].squeeze() * d_diag
-            map_n6_t = map_dic_n6['map_sum'].squeeze() * d_diag
+            map_n5_t = map_dic_n5['map_sum'].squeeze() * d_diag * jy2mKsr / self.px_sa**2 / beam_dilution
+            map_n6_t = map_dic_n6['map_sum'].squeeze() * d_diag * jy2mKsr / self.px_sa**2 / beam_dilution
             
             if i == 0:
                 data_dic = {'px_dic':map_dic_n5['px_dic']}
@@ -51,11 +61,16 @@ class ImgCube:
                 img_cube_n6 = map_n6_t
                 freq_mhz_arr = np.array([freq_mhz,])
                 self.d_diag = d_diag
+                self.jy2mKsr = jy2mKsr
+                self.beam_dilution = beam_dilution
             else:
                 img_cube_n5 = np.vstack((img_cube_n5, map_n5_t))
                 img_cube_n6 = np.vstack((img_cube_n6, map_n5_t))
                 freq_mhz_arr = np.append(freq_mhz_arr, freq_mhz)
                 self.d_diag = np.vstack((self.d_diag, d_diag))
+                self.jy2mKsr = np.vstack((self.jy2mKsr, jy2mKsr))
+                self.beam_dilution = np.vstack((self.beam_dilution, beam_dilution))
+                
         img_cube_n5 = img_cube_n5.squeeze().reshape(((-1, *map_dic_n5['px_dic']['ra_deg'].shape)))
         img_cube_n6 = img_cube_n6.squeeze().reshape(((-1, *map_dic_n6['px_dic']['ra_deg'].shape)))
 
@@ -89,10 +104,10 @@ class ImgCube:
 
             freq_mhz = float(re.search('_(......)MHz', file_n5_t).group(1))
             print(i, freq_mhz, 'MHz', end=',')
+            norm_t = self.d_diag[i] / self.px_sa**2 / self.beam_dilution[i]
             if norm:
-                d_diag = self.d_diag[i]
-                p_mat_n5_t = map_dic_n5['p_sum']*d_diag[np.newaxis, :]
-                p_mat_n6_t = map_dic_n6['p_sum']*d_diag[np.newaxis, :]
+                p_mat_n5_t = map_dic_n5['p_sum']*norm_t[:, np.newaxis]
+                p_mat_n6_t = map_dic_n6['p_sum']*norm_t[:, np.newaxis]
             else:
                 p_mat_n5_t = map_dic_n5['p_sum']
                 p_mat_n6_t = map_dic_n6['p_sum']

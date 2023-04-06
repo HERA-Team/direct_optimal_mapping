@@ -6,6 +6,8 @@ from astropy.time import Time
 from astropy import constants
 from astropy import units as u
 from astropy.coordinates import EarthLocation, AltAz, SkyCoord, TETE
+from astropy.modeling.functional_models import AiryDisk2D
+
 import copy
 import healpy as hp
 from pyuvdata import UVData, UVBeam
@@ -224,7 +226,8 @@ class OptMapping:
         
         pyuvbeam = UVBeam()
         pyuvbeam.read_beamfits(beam_file)        
-        pyuvbeam.efield_to_power()
+        if pyuvbeam.beam_type == 'efield':
+            pyuvbeam.efield_to_power()
         pyuvbeam.select(polarizations=self.uv.polarization_array)
         #print(pyuvbeam.polarization_array)
         pyuvbeam.peak_normalize()
@@ -235,7 +238,30 @@ class OptMapping:
         self.pyuvbeam = pyuvbeam
         return
     
-    def set_a_mat(self, uvw_sign=1, apply_beam=True):
+    def airy_beam(self, az, alt, freq, dish_dia=12):
+        '''Calculating the circularly symmetric Airy beam
+        
+        Parameters
+        ----------
+        az, alt: azimuth and altitude of the sky position, in radians
+        freq: frequency, in Hz
+        dish_dia: dish diameter, in meters
+            Default value is 12m for HERA dishes
+        
+        Return
+        ------
+        Airy beam values
+        '''
+        airy = AiryDisk2D()
+        wv = constants.c.value/freq
+        airy_radius = 1.22*wv/dish_dia
+        peak_amp = 1
+        # airy.evaluate(x, y, amplitude, x_0, y_0, radius)
+        return airy.evaluate(np.cos(alt)*np.cos(az),
+                             np.cos(alt)*np.sin(az), 
+                             peak_amp, 0, 0, airy_radius)
+    
+    def set_a_mat(self, uvw_sign=1, apply_beam=True, beam_model='dipole'):
         '''Calculating A matrix, covering the range defined by K_psf
         
         Input:
@@ -263,12 +289,13 @@ class OptMapping:
             lmn_t = np.array([np.cos(alt_t)*np.sin(az_t), 
                               np.cos(alt_t)*np.cos(az_t), 
                               np.sin(alt_t)])
-            pyuvbeam_interp,_ = self.pyuvbeam.interp(az_array=np.mod(np.pi/2. - az_t, 2*np.pi), 
-                                                     za_array=np.pi/2. - alt_t, 
-                                                     az_za_grid=False, freq_array= freq_array,
-                                                     reuse_spline=True, check_azza_domain=False)
-#             print('check_azza_domain=False.')
-            beam_map_t = pyuvbeam_interp[0, 0, 0, 0].real
+#             pyuvbeam_interp,_ = self.pyuvbeam.interp(az_array=np.mod(np.pi/2. - az_t, 2*np.pi), 
+#                                                      za_array=np.pi/2. - alt_t, 
+#                                                      az_za_grid=False, freq_array= freq_array,
+#                                                      reuse_spline=True, check_azza_domain=False)
+#             beam_map_t = pyuvbeam_interp[0, 0, 0, 0].real
+            print('Airy beam.')
+            beam_map_t = self.airy_beam(az_t, alt_t, freq_array[0])
             idx_time = np.where(self.uv.time_array == time_t)[0]
             self.a_mat[idx_time] = uvw_sign*2*np.pi/self.wavelength*(self.uv.uvw_array[idx_time]@lmn_t)
             self.beam_mat[idx_time] = np.tile(beam_map_t, idx_time.size).reshape(idx_time.size, -1)

@@ -140,10 +140,12 @@ class PS_Calc:
                 
         return
     
-    def set_k_space(self, binning='lin', n_perp=None):
+    def set_k_space(self, ps3d=None, binning='lin', n_perp=None):
         '''Setting the k-space grid from the cosmological grid
         Parameters
         ----------
+        ps3d: array
+            power spectrum in 3d. Default is None, using self.ps3d
         binning: str
             binning can be 'lin' or 'log', meaning binning k_perp evenly in
             linear or log space
@@ -152,6 +154,10 @@ class PS_Calc:
         Return
         ------
         '''
+        
+        if ps3d is None:
+            ps3d = self.ps3d
+        
         self.kx = np.fft.fftfreq(self.nx, d=self.res_x_mpch)*2*np.pi
         self.ky = np.fft.fftfreq(self.ny, d=self.res_y_mpch)*2*np.pi
         self.kz = np.fft.fftfreq(self.nz, d=self.res_z_mpch)*2*np.pi
@@ -175,8 +181,8 @@ class PS_Calc:
         self.ps2d_se = np.zeros((n_perp, self.nz))
         for i in range(len(self.k_perp_edge)-1):
             idx_t = np.where((self.k_perp > self.k_perp_edge[i]) & (self.k_perp < self.k_perp_edge[i+1]))
-            self.ps2d[i] = np.average(self.ps3d[:, idx_t[0], idx_t[1]], axis=1)
-            self.ps2d_se[i] = np.std(self.ps3d[:, idx_t[0], idx_t[1]], axis=1)/np.sqrt(len(idx_t[0]))
+            self.ps2d[i] = np.average(ps3d[:, idx_t[0], idx_t[1]], axis=1)
+            self.ps2d_se[i] = np.std(ps3d[:, idx_t[0], idx_t[1]], axis=1)/np.sqrt(len(idx_t[0]))
         self.ps2d = self.ps2d[:, :n_para]
         self.k_perp = self.k_perp_edge[:-1]
         
@@ -207,8 +213,8 @@ class PS_Calc:
 #             p_mat_I_tapered = p_mat_I_tapered * y_window[np.newaxis, np.newaxis, :]
             
         self.taper_3d_p = self.taper_3d.reshape((self.nz, self.nx * self.ny))
-        p_mat_I_tapered = p_dic['p_mat_I'] * np.expand_dims(self.taper_3d_p, axis=1)
-        p_mat_I_tapered *= np.expand_dims(self.taper_3d_p, axis=2)
+        p_mat_I_tapered = p_dic['p_mat_I'] * np.expand_dims(self.taper_3d_p, axis=2)
+#         p_mat_I_tapered *= np.expand_dims(self.taper_3d_p, axis=2)
     
         p_3d = scipy.linalg.block_diag(*p_mat_I_tapered)
         p_tilda1 = np.zeros(p_3d.shape, dtype='complex128')
@@ -231,8 +237,23 @@ class PS_Calc:
         if normalize:
             self.ps3d = self.ps3d/self.h_sum3d
         
-        return 
+        return
     
+    def calc_norm_fft(self):
+        '''Calculating the normalized FFT and PS using
+        p_tilda
+        '''
+        if not hasattr(self, 'p_tilda'):
+            print('calc_p_tilda should have been run first.')
+            return
+        if not hasattr(self, 'fft3d1'):
+            print('calc_fft should have been run first.')
+            return
+        fft3d1_norm = np.matmul(self.p_tilda, self.fft3d1)
+        fft3d2_norm = np.matmul(self.p_tilda, self.fft3d2)
+        self.ps3d_norm = fft3d1_norm.conjugate() * fft3d2_norm * self.voxel_volume
+#         self.ps3d = self.ps3d.real
+        return
     
     def h_mat_binning(self):
         '''Binning the 3d h_mat into k_para and k_perp

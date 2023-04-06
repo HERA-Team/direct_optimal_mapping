@@ -43,7 +43,7 @@ class ImgCube:
             beam_dilution = beam_dilution.flatten()
 
 #             syn_sa = self.sa_interp(freq_mhz)
-            print(i, freq_mhz, 'MHz', end=',')
+#             print(i, freq_mhz, 'MHz', end=',')
             
             # normalization d calculation
             d_diag = 1/map_dic_n5['beam_weight_sum']# * np.square(map_dic_n5['px_dic']['sa_sr']).flatten()) # vis -> Jy/sr
@@ -52,8 +52,8 @@ class ImgCube:
             jy2mKsr = 1e-26*const.c.value**2/2/(1e6*freq_mhz)**2/const.k_B.value*1e3
 #             d_diag = d_diag * jysr2mk.value # Jy/sr -> mK
 
-            map_n5_t = map_dic_n5['map_sum'].squeeze() * d_diag * jy2mKsr / self.px_sa**2 / beam_dilution
-            map_n6_t = map_dic_n6['map_sum'].squeeze() * d_diag * jy2mKsr / self.px_sa**2 / beam_dilution
+            map_n5_t = map_dic_n5['map_sum'].squeeze() * d_diag * jy2mKsr / self.px_sa**2 #/ beam_dilution
+            map_n6_t = map_dic_n6['map_sum'].squeeze() * d_diag * jy2mKsr / self.px_sa**2 #/ beam_dilution
             
             if i == 0:
                 data_dic = {'px_dic':map_dic_n5['px_dic']}
@@ -102,9 +102,10 @@ class ImgCube:
             with open(file_n6_t, 'rb') as f_t:
                 map_dic_n6 = pickle.load(f_t)
 
-            freq_mhz = float(re.search('_(......)MHz', file_n5_t).group(1))
-            print(i, freq_mhz, 'MHz', end=',')
-            norm_t = self.d_diag[i] / self.px_sa**2 / self.beam_dilution[i]
+#             freq_mhz = float(re.search('_(......)MHz', file_n5_t).group(1))
+            freq_mhz = map_dic_n5['freq']/1e6
+#             print(i, freq_mhz, 'MHz', end=',')
+            norm_t = self.d_diag[i] / self.px_sa**2 #/ self.beam_dilution[i]
             if norm:
                 p_mat_n5_t = map_dic_n5['p_sum']*norm_t[:, np.newaxis]
                 p_mat_n6_t = map_dic_n6['p_sum']*norm_t[:, np.newaxis]
@@ -148,7 +149,8 @@ class ImgCube:
             with open(file_n6_t, 'rb') as f_t:
                 map_dic_n6 = pickle.load(f_t)
 
-            freq_mhz = float(re.search('_(......)MHz', file_n5_t).group(1))
+#             freq_mhz = float(re.search('_(......)MHz', file_n5_t).group(1))
+            freq_mhz = map_dic_n5['freq']/1e6
             print(i, freq_mhz, 'MHz', end=',')
             
             d_diag = self.d_diag[i]

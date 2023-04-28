@@ -37,6 +37,7 @@ class PS_Calc:
         self.px_dic = data_cube_dic1['px_dic']
         self.data_cube1 = data_cube_dic1['data_cube_I']
         self.data_cube2 = data_cube_dic2['data_cube_I']
+        self.beam_pwr_corr = data_cube_dic1['beam_pwr_corr']
         self.par_taper = par_taper
         self.per_taper = per_taper
         self.nz, self.nx, self.ny = self.data_cube1.shape
@@ -100,9 +101,16 @@ class PS_Calc:
         
         return
     
-    def calc_fft(self):
+    def calc_fft(self, volume='effective'):
         '''Calculating the fft of the data cube with the taper applied
         along the frequency direction.
+        
+        Parameters
+        ----------
+        volume: str
+            'original' or 'effective', referring to the original size
+            of the image cube or the ones attenuated by the primary beam
+            and the tapering
         
         '''
         
@@ -134,6 +142,12 @@ class PS_Calc:
         self.fft3d1 = np.fft.fftn(data_cube1_tapered, norm='ortho')
         self.fft3d2 = np.fft.fftn(data_cube2_tapered, norm='ortho')
         self.ps3d = self.fft3d1.conjugate() * self.fft3d2 * self.voxel_volume
+        if volume == 'original':
+            self.ps3d = self.ps3d
+        elif volume == 'effective':
+            tp_corr = np.sum(self.taper_3d**2)/len(self.taper_3d.flatten())
+            corr = tp_corr * self.beam_pwr_corr
+            self.ps3d = self.ps3d/corr
         self.ps3d = self.ps3d.real
 #         if norm:
 #             self.ps3d = self.ps3d * norm_factor
@@ -180,7 +194,7 @@ class PS_Calc:
         self.ps2d = np.zeros((n_perp, self.nz))
         self.ps2d_se = np.zeros((n_perp, self.nz))
         for i in range(len(self.k_perp_edge)-1):
-            idx_t = np.where((self.k_perp > self.k_perp_edge[i]) & (self.k_perp < self.k_perp_edge[i+1]))
+            idx_t = np.where((self.k_perp >= self.k_perp_edge[i]) & (self.k_perp < self.k_perp_edge[i+1]))
             self.ps2d[i] = np.average(ps3d[:, idx_t[0], idx_t[1]], axis=1)
             self.ps2d_se[i] = np.std(ps3d[:, idx_t[0], idx_t[1]], axis=1)/np.sqrt(len(idx_t[0]))
         self.ps2d = self.ps2d[:, :n_para]
@@ -271,7 +285,7 @@ class PS_Calc:
             for j in range(n_para_bin):
                 p_perp_t = np.zeros(n_perp_bin, dtype='complex128')
                 for i in range(n_perp_bin):
-                    idx_t = np.where((k_perp[j, :, :] > self.k_perp_edge[i]) & 
+                    idx_t = np.where((k_perp[j, :, :] >= self.k_perp_edge[i]) & 
                                      (k_perp[j, :, :] < self.k_perp_edge[i+1]))
                     p_perp_t[i] = np.average(h_mat_row_t_reshaped[j][idx_t])
                 h_mat_row_t_2d[j] = p_perp_t

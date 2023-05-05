@@ -261,7 +261,7 @@ class OptMapping:
                              np.cos(alt)*np.sin(az), 
                              peak_amp, 0, 0, airy_radius)
     
-    def set_a_mat(self, uvw_sign=1, apply_beam=True, beam_model='dipole'):
+    def set_a_mat(self, uvw_sign=1, apply_beam=True, beam_model='cst'):
         '''Calculating A matrix, covering the range defined by K_psf
         
         Input:
@@ -270,6 +270,8 @@ class OptMapping:
             uvw sign for the baseline calculation
         apply_beam: boolean
             Whether apply beam to the a matrix elements, default:true
+        beam_model: str
+            string of the beam model, can be 'cst' (default) or 'airy'
         
         Attribute:
         ------
@@ -289,13 +291,17 @@ class OptMapping:
             lmn_t = np.array([np.cos(alt_t)*np.sin(az_t), 
                               np.cos(alt_t)*np.cos(az_t), 
                               np.sin(alt_t)])
-#             pyuvbeam_interp,_ = self.pyuvbeam.interp(az_array=np.mod(np.pi/2. - az_t, 2*np.pi), 
-#                                                      za_array=np.pi/2. - alt_t, 
-#                                                      az_za_grid=False, freq_array= freq_array,
-#                                                      reuse_spline=True, check_azza_domain=False)
-#             beam_map_t = pyuvbeam_interp[0, 0, 0, 0].real
-            print('Airy beam.')
-            beam_map_t = self.airy_beam(az_t, alt_t, freq_array[0])
+            if beam_model == 'cst':
+                pyuvbeam_interp,_ = self.pyuvbeam.interp(az_array=np.mod(np.pi/2. - az_t, 2*np.pi), 
+                                                         za_array=np.pi/2. - alt_t, 
+                                                         az_za_grid=False, freq_array= freq_array,
+                                                         reuse_spline=True, check_azza_domain=False)
+                beam_map_t = pyuvbeam_interp[0, 0, 0, 0].real
+            elif beam_model == 'airy':
+                print('Airy beam.')
+                beam_map_t = self.airy_beam(az_t, alt_t, freq_array[0])
+            else:
+                print('Please provide correct beam_model.')
             idx_time = np.where(self.uv.time_array == time_t)[0]
             self.a_mat[idx_time] = uvw_sign*2*np.pi/self.wavelength*(self.uv.uvw_array[idx_time]@lmn_t)
             self.beam_mat[idx_time] = np.tile(beam_map_t, idx_time.size).reshape(idx_time.size, -1)

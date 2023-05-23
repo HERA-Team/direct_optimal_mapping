@@ -175,6 +175,9 @@ class PS_Calc:
         self.kx = np.fft.fftfreq(self.nx, d=self.res_x_mpch)*2*np.pi
         self.ky = np.fft.fftfreq(self.ny, d=self.res_y_mpch)*2*np.pi
         self.kz = np.fft.fftfreq(self.nz, d=self.res_z_mpch)*2*np.pi
+        kx_res = np.mean(np.diff(self.kx[:self.nx//2]))
+        ky_res = np.mean(np.diff(self.ky[:self.ny//2]))
+        
 
         self.k_zz, self.k_xx, self.k_yy = np.meshgrid(self.kz, self.kx, self.ky, indexing='ij')
 
@@ -185,7 +188,7 @@ class PS_Calc:
         n_para = self.nz//2
         self.k_para = self.kz[:n_para]
         if binning == 'lin':
-            self.k_perp_edge = np.linspace(0, np.max(self.k_perp), n_perp+1)
+            self.k_perp_edge = np.linspace(np.sqrt(kx_res * ky_res), np.max(self.k_perp), n_perp+1)
         elif binning == 'log':
             self.k_perp_edge = np.geomspace(np.min(self.k_perp[self.k_perp>0])/2., 
                                             np.max(self.k_perp), n_perp+1)
@@ -193,12 +196,12 @@ class PS_Calc:
             raise RuntimeError('Wrong binning input.')
         self.ps2d = np.zeros((n_perp, self.nz))
         self.ps2d_se = np.zeros((n_perp, self.nz))
-        for i in range(len(self.k_perp_edge)-1):
+        for i in range(n_perp):
             idx_t = np.where((self.k_perp >= self.k_perp_edge[i]) & (self.k_perp < self.k_perp_edge[i+1]))
             self.ps2d[i] = np.average(ps3d[:, idx_t[0], idx_t[1]], axis=1)
             self.ps2d_se[i] = np.std(ps3d[:, idx_t[0], idx_t[1]], axis=1)/np.sqrt(len(idx_t[0]))
         self.ps2d = self.ps2d[:, :n_para]
-        self.k_perp = self.k_perp_edge[:-1]
+        self.k_perp = self.k_perp_edge[:-1] + np.mean(np.diff(self.k_perp_edge))/2.
         
         return
 

@@ -101,7 +101,7 @@ class PS_Calc:
         
         return
     
-    def calc_fft(self, volume='effective'):
+    def calc_fft(self, volume='original'):
         '''Calculating the fft of the data cube with the taper applied
         along the frequency direction.
         
@@ -316,7 +316,7 @@ class PS_Calc:
         return
     
     
-    def calc_ps1d(self, nbin=None, avoid_fg=True):
+    def calc_ps1d(self, nbin=None, avoid_fg=True, max_kperp=np.inf):
         '''Calculating 1d PS from the 3d PS
         Parameters
         ----------
@@ -324,11 +324,14 @@ class PS_Calc:
             Number of 1d k-bin numbers. Default: None, using the bin number from nz
         avoid_fg: bool
             Avoid foreground or not, avoid the wedge + buffer (defined in set_cosmo_grid)
+        max_kperp: float
+            Max k_perp to include given the instrument max baseline (unit: h/Mpc)
         
         '''
         if nbin == None:
             nbin = self.nz//2
         kr = np.sqrt(self.k_xx**2 + self.k_yy**2 + self.k_zz**2)
+        k_perp = np.sqrt(self.k_xx**2 + self.k_yy**2)
         if avoid_fg == True:
             k_perp = np.sqrt(self.k_xx**2 + self.k_yy**2)
             fg_flag = self.k_zz > k_perp * self.slope + self.y_intercept
@@ -341,7 +344,7 @@ class PS_Calc:
         ps1d_var = []
         n_sample = []
         for i in range(nbin):
-            idx_t = np.where((kr > kr_edge[i]) & (kr < kr_edge[i+1]) & fg_flag)
+            idx_t = np.where((kr > kr_edge[i]) & (kr < kr_edge[i+1]) & fg_flag & (k_perp < max_kperp))
             ps1d.append(np.average(self.ps3d[idx_t]))
             ps1d_var.append(np.mean(self.ps3d[idx_t]**2) - np.mean(self.ps3d[idx_t])**2)
             n_sample.append(len(idx_t[0]))

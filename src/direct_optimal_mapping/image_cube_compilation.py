@@ -58,8 +58,8 @@ class ImgCube:
 #             d_diag = d_diag * jysr2mk.value # Jy/sr -> mK
             corr = np.sum(map_dic_n5['beam_sq_weight_sum']/map_dic_n5['n_vis'])/len(map_dic_n5['beam_sq_weight_sum'])
 
-            map_n5_t = map_dic_n5['map_sum'].squeeze() * d_diag * jy2mKsr / (self.px_sa * beam_sa) #* syn_beam_sa) # / beam_dilution
-            map_n6_t = map_dic_n6['map_sum'].squeeze() * d_diag * jy2mKsr / (self.px_sa * beam_sa) #* syn_beam_sa) # / beam_dilution
+            map_n5_t = map_dic_n5['map_sum'].squeeze() * d_diag * jy2mKsr / beam_sa #* syn_beam_sa) # / beam_dilution
+            map_n6_t = map_dic_n6['map_sum'].squeeze() * d_diag * jy2mKsr / beam_sa #* syn_beam_sa) # / beam_dilution
             
             if i == 0:
                 data_dic = {'px_dic':map_dic_n5['px_dic']}
@@ -115,12 +115,16 @@ class ImgCube:
 
 #             freq_mhz = float(re.search('_(......)MHz', file_n5_t).group(1))
             freq_mhz = map_dic_n5['freq']/1e6
+            sa_sr = map_dic_n5['px_dic']['sa_sr']
+            jy2mKsr = 1e-26*const.c.value**2/2/(1e6*freq_mhz)**2/const.k_B.value*1e3
 #             print(i, freq_mhz, 'MHz', end=',')
 #             norm_t = self.d_diag[i] / (self.px_sa * self.beam_sa[i]) #* self.syn_beam_sa[i]) #/ self.beam_dilution[i]
-            norm_t = self.d_diag[i] / self.beam_sa[i]
+            norm_t = self.d_diag[i] * jy2mKsr / self.beam_sa[i]
             if norm:
                 p_mat_n5_t = map_dic_n5['p_sum']*norm_t[:, np.newaxis]
                 p_mat_n6_t = map_dic_n6['p_sum']*norm_t[:, np.newaxis]
+                p_mat_n5_t *= sa_sr.flatten()[np.newaxis, :]
+                p_mat_n6_t *= sa_sr.flatten()[np.newaxis, :]
             else:
                 p_mat_n5_t = map_dic_n5['p_sum']
                 p_mat_n6_t = map_dic_n6['p_sum']
@@ -164,7 +168,7 @@ class ImgCube:
 #             freq_mhz = float(re.search('_(......)MHz', file_n5_t).group(1))
             freq_mhz = map_dic_n5['freq']/1e6
             print(i, freq_mhz, 'MHz', end=',')
-            
+        
             d_diag = self.d_diag[i]
             
             cov_mat_n5_t = map_dic_n5['p_sum']*d_diag[:, np.newaxis]*d_diag[np.newaxis, :]

@@ -351,7 +351,7 @@ class OptMapping:
             self.beam_mat[self.flag.flatten()] = 0
             self.a_mat = np.multiply(self.a_mat, self.beam_mat)
         
-        self.a_mat = np.multiply(self.a_mat, self.sa_mat)
+#         self.a_mat = np.multiply(self.a_mat, self.sa_mat)
 
         return 
     

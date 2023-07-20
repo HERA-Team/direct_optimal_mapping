@@ -154,6 +154,42 @@ class PS_Calc:
                 
         return
     
+    def norm_calc(self, p_dic, norm_data=True):
+        '''Calculating the normalization factor for the 3D power
+        spectrum
+        Parameters
+        ----------
+        p_dic: dictionary
+            containing the p matrices
+        norm_data: boolean
+            whether normalize the ps3d data in place
+        Return
+        ------
+        None
+        '''
+        nx, ny = p_dic['px_dic']['ra_deg'].shape
+        nz, _, _ = p_dic['p_mat_I'].shape
+        taper_3d_p = self.taper_3d.reshape((nz, nx * ny))
+        rp_mat = p_dic['p_mat_I'] * np.expand_dims(taper_3d_p, axis=2)
+        
+        n_px = nx * ny
+        n_vx = nz * nx * ny
+        m_diag = np.zeros(n_vx)
+        for i in range(n_vx):
+            ifreq = i//n_px
+            ip = i%n_px
+            col_t = np.zeros(n_vx)
+            col_t[n_px*ifreq:n_px*(ifreq+1)] = rp_mat[ifreq, :, ip]
+            col_t_reshape = col_t.reshape((nz, nx, ny))
+            col_t_tilda = np.fft.fftn(col_t_reshape, norm='ortho').flatten()
+            m_diag += np.abs(col_t_tilda)**2
+        self.m_diag = m_diag
+        if norm_data is True:
+            self.ps3d = self.ps3d/m_diag.reshape((nz, nx, ny))        
+        
+        return
+        
+    
     def set_k_space(self, ps3d=None, binning='lin', n_perp=None):
         '''Setting the k-space grid from the cosmological grid
         Parameters

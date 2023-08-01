@@ -141,7 +141,7 @@ class ImgCube:
         
         p_dic['p_mat_pol-5'] = p_mat_n5
         p_dic['p_mat_pol-6'] = p_mat_n6
-        p_dic['p_mat_I'] = 0.5**2 * (p_mat_n5 + p_mat_n6)
+        p_dic['p_mat_I'] = 0.5 * (p_mat_n5 + p_mat_n6)
         p_dic['freq_mhz'] = freq_mhz_arr
         self.p_dic = p_dic
         

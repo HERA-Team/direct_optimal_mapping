@@ -38,6 +38,7 @@ class PS_Calc:
         self.data_cube1 = data_cube_dic1['data_cube_I']
         self.data_cube2 = data_cube_dic2['data_cube_I']
         self.beam_pwr_corr = data_cube_dic1['beam_pwr_corr']
+        self.syn_beam_sr = data_cube_dic1['syn_beam_sr']
         self.par_taper = par_taper
         self.per_taper = per_taper
         self.nz, self.nx, self.ny = self.data_cube1.shape
@@ -98,6 +99,8 @@ class PS_Calc:
 
         self.res_z_mpch = np.mean(np.abs(np.diff(self.dist_cm_h))).value
         self.voxel_volume = self.res_x_mpch * self.res_y_mpch * self.res_z_mpch
+        
+        self.syn_beam_mpch = np.average(self.syn_beam_sr) * dist_cm_h_avg.value
         
         return
     
@@ -213,9 +216,10 @@ class PS_Calc:
         self.kz = np.fft.fftfreq(self.nz, d=self.res_z_mpch)*2*np.pi
         kx_res = np.mean(np.diff(self.kx[:self.nx//2]))
         ky_res = np.mean(np.diff(self.ky[:self.ny//2]))
-        
+        self.syn_beam_k = 2*np.pi*(1/self.syn_beam_mpch)
 
         self.k_zz, self.k_xx, self.k_yy = np.meshgrid(self.kz, self.kx, self.ky, indexing='ij')
+        self.mask_3d = np.sqrt(self.k_xx**2 + self.k_yy**2) < self.syn_beam_k
 
         self.k_perp = np.sqrt(np.average(self.k_xx, axis=0)**2 + 
                               np.average(self.k_yy, axis=0)**2)
@@ -286,7 +290,8 @@ class PS_Calc:
 #         p_tilda = p_tilda * self.voxel_volume       
         self.h_mat = np.abs(p_tilda)**2
         self.p_tilda = p_tilda
-        self.h_sum3d = np.sum(self.h_mat, axis=1).reshape(shape)
+        self.h_mat_masked = self.h_mat * self.mask_3d.flatten()[np.newaxis, :]
+        self.h_sum3d = np.sum(self.h_mat_masked, axis=1).reshape(shape)
         if normalize:
             self.ps3d = self.ps3d/self.h_sum3d
         
@@ -352,7 +357,7 @@ class PS_Calc:
         return
     
     
-    def calc_ps1d(self, nbin=None, avoid_fg=True, max_kperp=np.inf):
+    def calc_ps1d(self, nbin=None, avoid_fg=True, max_kperp=None):
         '''Calculating 1d PS from the 3d PS
         Parameters
         ----------
@@ -366,6 +371,8 @@ class PS_Calc:
         '''
         if nbin == None:
             nbin = self.nz//2
+        if max_kperp == None:
+            max_kperp = self.syn_beam_k
         kr = np.sqrt(self.k_xx**2 + self.k_yy**2 + self.k_zz**2)
         k_perp = np.sqrt(self.k_xx**2 + self.k_yy**2)
         if avoid_fg == True:

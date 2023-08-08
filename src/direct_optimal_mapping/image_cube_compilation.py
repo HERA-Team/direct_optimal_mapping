@@ -89,6 +89,7 @@ class ImgCube:
         data_dic['data_cube_I'] = 0.5*(img_cube_n5 + img_cube_n6)
         data_dic['freq_mhz'] = freq_mhz_arr
         data_dic['beam_pwr_corr'] = np.mean(self.beam_pwr_corr)
+        data_dic['syn_beam_sr'] = np.sqrt(self.syn_beam_sa)
         self.data_dic = data_dic
         
         return self.data_dic

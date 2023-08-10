@@ -157,7 +157,7 @@ class PS_Calc:
                 
         return
     
-    def norm_calc(self, p_dic, norm_data=True):
+    def norm_calc(self, p_dic, norm_data=True, select_kperp=True):
         '''Calculating the normalization factor for the 3D power
         spectrum
         Parameters
@@ -166,6 +166,8 @@ class PS_Calc:
             containing the p matrices
         norm_data: boolean
             whether normalize the ps3d data in place
+        select_kperp: boolean
+            whether we select the kperp range within the longest baseline
         Return
         ------
         None
@@ -185,6 +187,8 @@ class PS_Calc:
             col_t[n_px*ifreq:n_px*(ifreq+1)] = rp_mat[ifreq, :, ip]
             col_t_reshape = col_t.reshape((nz, nx, ny))
             col_t_tilda = np.fft.fftn(col_t_reshape, norm='ortho').flatten()
+            if select_kperp:
+                col_t_tilda *= self.mask_3d.flatten()
             m_diag += np.abs(col_t_tilda)**2
         self.m_diag = m_diag
         if norm_data is True:
@@ -290,8 +294,8 @@ class PS_Calc:
 #         p_tilda = p_tilda * self.voxel_volume       
         self.h_mat = np.abs(p_tilda)**2
         self.p_tilda = p_tilda
-        self.h_mat_masked = self.h_mat * self.mask_3d.flatten()[np.newaxis, :]
-        self.h_sum3d = np.sum(self.h_mat_masked, axis=1).reshape(shape)
+        self.h_mat_masked = self.h_mat * self.mask_3d.flatten()[:, np.newaxis]
+        self.h_sum3d = np.sum(self.h_mat_masked, axis=0).reshape(shape)
         if normalize:
             self.ps3d = self.ps3d/self.h_sum3d
         
@@ -311,6 +315,46 @@ class PS_Calc:
         fft3d2_norm = np.matmul(self.p_tilda, self.fft3d2)
         self.ps3d_norm = fft3d1_norm.conjugate() * fft3d2_norm * self.voxel_volume
 #         self.ps3d = self.ps3d.real
+        return
+    
+    def window_binning(self):
+        '''Binning 3d window function to 2d
+        '''
+        k_perp = np.sqrt(self.k_xx**2 +self.k_yy**2)
+
+        n_para_bin = len(self.kz)
+        n_perp_bin = len(self.k_perp_edge) - 1
+
+        win_2d_partial = np.zeros((self.win.shape[0], n_para_bin*n_perp_bin))
+        for k in range(self.h_mat.shape[0]):
+            win_row_t = self.win[k]
+            win_row_t_reshaped = win_row_t.reshape([n_para_bin, len(self.kx), len(self.ky)])
+            win_row_t_2d = np.zeros([n_para_bin, n_perp_bin])
+            for j in range(n_para_bin):
+                p_perp_t = np.zeros(n_perp_bin)
+                for i in range(n_perp_bin):
+                    idx_t = np.where((k_perp[j, :, :] >= self.k_perp_edge[i]) & 
+                                     (k_perp[j, :, :] < self.k_perp_edge[i+1]))
+                    p_perp_t[i] = np.average(win_row_t_reshaped[j][idx_t])
+                win_row_t_2d[j] = p_perp_t
+            win_2d_partial[k] = win_row_t_2d.flatten()
+
+        win_2d = np.zeros((n_para_bin*n_perp_bin, n_para_bin*n_perp_bin))
+        for k in range(win_2d_partial.shape[1]):
+            win_col_t = win_2d_partial[:, k]
+            win_col_t_reshaped = win_col_t.reshape([n_para_bin, len(self.kx), len(self.ky)])
+            win_col_t_2d = np.zeros([n_para_bin, n_perp_bin])
+            for j in range(n_para_bin):
+                p_perp_t = np.zeros(n_perp_bin)
+                for i in range(n_perp_bin):
+                    idx_t = np.where((k_perp[j, :, :] > self.k_perp_edge[i]) & 
+                                     (k_perp[j, :, :] < self.k_perp_edge[i+1]))
+                    p_perp_t[i] = np.average(win_col_t_reshaped[j][idx_t])
+                win_col_t_2d[j] = p_perp_t
+            win_2d[:, k] = win_col_t_2d.flatten()
+            
+        self.win_2d = win_2d
+        
         return
     
     def h_mat_binning(self):
@@ -351,7 +395,7 @@ class PS_Calc:
             
         self.h_mat_2d = h_mat_2d.real
         
-        h_sum = np.nansum(self.h_mat_2d[:, :], axis=1).reshape(n_para_bin, n_perp_bin)
+        h_sum = np.nansum(self.h_mat_2d[:, :], axis=0).reshape(n_para_bin, n_perp_bin)
         self.window = 1/h_sum
         
         return

@@ -336,7 +336,7 @@ class PS_Calc:
                 for i in range(n_perp_bin):
                     idx_t = np.where((k_perp[j, :, :] >= self.k_perp_edge[i]) & 
                                      (k_perp[j, :, :] < self.k_perp_edge[i+1]))
-                    p_perp_t[i] = np.average(win_row_t_reshaped[j][idx_t])
+                    p_perp_t[i] = np.sum(win_row_t_reshaped[j][idx_t])
                 win_row_t_2d[j] = p_perp_t
             win_2d_partial[k] = win_row_t_2d.flatten()
 

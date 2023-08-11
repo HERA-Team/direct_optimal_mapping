@@ -296,7 +296,7 @@ class PS_Calc:
         self.p_tilda = p_tilda
         self.h_mat_masked = self.h_mat * self.mask_3d.flatten()[np.newaxis, :]
         self.h_sum3d = np.sum(self.h_mat_masked, axis=1).reshape(shape)
-        self.window = self.h_mat / self.h_sum3d.flatten()[np.newaxis, :]
+        self.window = self.h_mat / self.h_sum3d.flatten()[:, np.newaxis]
         if normalize:
             self.ps3d = self.ps3d/self.h_sum3d
         

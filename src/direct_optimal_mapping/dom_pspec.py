@@ -294,8 +294,9 @@ class PS_Calc:
 #         p_tilda = p_tilda * self.voxel_volume       
         self.h_mat = np.abs(p_tilda)**2
         self.p_tilda = p_tilda
-        self.h_mat_masked = self.h_mat * self.mask_3d.flatten()[:, np.newaxis]
-        self.h_sum3d = np.sum(self.h_mat_masked, axis=0).reshape(shape)
+        self.h_mat_masked = self.h_mat * self.mask_3d.flatten()[np.newaxis, :]
+        self.h_sum3d = np.sum(self.h_mat_masked, axis=1).reshape(shape)
+        self.window = self.h_mat / self.h_sum3d.flatten()[np.newaxis, :]
         if normalize:
             self.ps3d = self.ps3d/self.h_sum3d
         
@@ -325,9 +326,9 @@ class PS_Calc:
         n_para_bin = len(self.kz)
         n_perp_bin = len(self.k_perp_edge) - 1
 
-        win_2d_partial = np.zeros((self.win.shape[0], n_para_bin*n_perp_bin))
+        win_2d_partial = np.zeros((self.window.shape[0], n_para_bin*n_perp_bin))
         for k in range(self.h_mat.shape[0]):
-            win_row_t = self.win[k]
+            win_row_t = self.window[k]
             win_row_t_reshaped = win_row_t.reshape([n_para_bin, len(self.kx), len(self.ky)])
             win_row_t_2d = np.zeros([n_para_bin, n_perp_bin])
             for j in range(n_para_bin):
@@ -395,7 +396,7 @@ class PS_Calc:
             
         self.h_mat_2d = h_mat_2d.real
         
-        h_sum = np.nansum(self.h_mat_2d[:, :], axis=0).reshape(n_para_bin, n_perp_bin)
+        h_sum = np.nansum(self.h_mat_2d[:, :], axis=1).reshape(n_para_bin, n_perp_bin)
         self.window = 1/h_sum
         
         return

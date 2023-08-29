@@ -156,7 +156,63 @@ class PS_Calc:
 #             self.ps3d = self.ps3d * norm_factor
                 
         return
-    
+        
+    def set_k_space(self, ps3d=None, binning='lin', n_perp=None, select_kperp=False):
+        '''Setting the k-space grid from the cosmological grid
+        Parameters
+        ----------
+        ps3d: array
+            power spectrum in 3d. Default is None, using self.ps3d
+        binning: str
+            binning can be 'lin' or 'log', meaning binning k_perp evenly in
+            linear or log space
+        n_perp: int
+            number of k_perp bins
+        select_kperp: bool
+            whether selecting only kperp accessible by the synthesized beam
+        Return
+        ------
+        '''
+        
+        if ps3d is None:
+            ps3d = self.ps3d
+        
+        self.kx = np.fft.fftfreq(self.nx, d=self.res_x_mpch)*2*np.pi
+        self.ky = np.fft.fftfreq(self.ny, d=self.res_y_mpch)*2*np.pi
+        self.kz = np.fft.fftfreq(self.nz, d=self.res_z_mpch)*2*np.pi
+        kx_res = np.mean(np.diff(self.kx[:self.nx//2]))
+        ky_res = np.mean(np.diff(self.ky[:self.ny//2]))
+        self.syn_beam_k = 2*np.pi*(1/self.syn_beam_mpch)
+
+        self.k_zz, self.k_xx, self.k_yy = np.meshgrid(self.kz, self.kx, self.ky, indexing='ij')
+        self.mask_3d = np.sqrt(self.k_xx**2 + self.k_yy**2) < self.syn_beam_k
+        if select_kperp is False:
+            self.mask_3d.fill(True)
+
+        self.k_perp = np.sqrt(np.average(self.k_xx, axis=0)**2 + 
+                              np.average(self.k_yy, axis=0)**2)
+        if n_perp is None:
+            n_perp = max(self.nx//2, self.ny//2)
+        n_para = self.nz//2
+        self.k_para = self.kz[:n_para]
+        if binning == 'lin':
+            self.k_perp_edge = np.linspace(np.sqrt(kx_res * ky_res), np.max(self.k_perp), n_perp+1)
+        elif binning == 'log':
+            self.k_perp_edge = np.geomspace(np.min(self.k_perp[self.k_perp>0])/2., 
+                                            np.max(self.k_perp), n_perp+1)
+        else:
+            raise RuntimeError('Wrong binning input.')
+        self.ps2d = np.zeros((n_perp, self.nz))
+        self.ps2d_se = np.zeros((n_perp, self.nz))
+        for i in range(n_perp):
+            idx_t = np.where((self.k_perp >= self.k_perp_edge[i]) & (self.k_perp < self.k_perp_edge[i+1]))
+            self.ps2d[i] = np.average(ps3d[:, idx_t[0], idx_t[1]], axis=1)
+            self.ps2d_se[i] = np.std(ps3d[:, idx_t[0], idx_t[1]], axis=1)/np.sqrt(len(idx_t[0]))
+        self.ps2d = self.ps2d[:, :n_para]
+        self.k_perp = self.k_perp_edge[:-1] + np.mean(np.diff(self.k_perp_edge))/2.
+        
+        return
+
     def norm_calc(self, p_dic, norm_data=True, select_kperp=True):
         '''Calculating the normalization factor for the 3D power
         spectrum
@@ -195,60 +251,6 @@ class PS_Calc:
             self.ps3d = self.ps3d/m_diag.reshape((nz, nx, ny))        
         
         return
-        
-    
-    def set_k_space(self, ps3d=None, binning='lin', n_perp=None):
-        '''Setting the k-space grid from the cosmological grid
-        Parameters
-        ----------
-        ps3d: array
-            power spectrum in 3d. Default is None, using self.ps3d
-        binning: str
-            binning can be 'lin' or 'log', meaning binning k_perp evenly in
-            linear or log space
-        n_perp: int
-            number of k_perp bins
-        Return
-        ------
-        '''
-        
-        if ps3d is None:
-            ps3d = self.ps3d
-        
-        self.kx = np.fft.fftfreq(self.nx, d=self.res_x_mpch)*2*np.pi
-        self.ky = np.fft.fftfreq(self.ny, d=self.res_y_mpch)*2*np.pi
-        self.kz = np.fft.fftfreq(self.nz, d=self.res_z_mpch)*2*np.pi
-        kx_res = np.mean(np.diff(self.kx[:self.nx//2]))
-        ky_res = np.mean(np.diff(self.ky[:self.ny//2]))
-        self.syn_beam_k = 2*np.pi*(1/self.syn_beam_mpch)
-
-        self.k_zz, self.k_xx, self.k_yy = np.meshgrid(self.kz, self.kx, self.ky, indexing='ij')
-        self.mask_3d = np.sqrt(self.k_xx**2 + self.k_yy**2) < self.syn_beam_k
-
-        self.k_perp = np.sqrt(np.average(self.k_xx, axis=0)**2 + 
-                              np.average(self.k_yy, axis=0)**2)
-        if n_perp is None:
-            n_perp = max(self.nx//2, self.ny//2)
-        n_para = self.nz//2
-        self.k_para = self.kz[:n_para]
-        if binning == 'lin':
-            self.k_perp_edge = np.linspace(np.sqrt(kx_res * ky_res), np.max(self.k_perp), n_perp+1)
-        elif binning == 'log':
-            self.k_perp_edge = np.geomspace(np.min(self.k_perp[self.k_perp>0])/2., 
-                                            np.max(self.k_perp), n_perp+1)
-        else:
-            raise RuntimeError('Wrong binning input.')
-        self.ps2d = np.zeros((n_perp, self.nz))
-        self.ps2d_se = np.zeros((n_perp, self.nz))
-        for i in range(n_perp):
-            idx_t = np.where((self.k_perp >= self.k_perp_edge[i]) & (self.k_perp < self.k_perp_edge[i+1]))
-            self.ps2d[i] = np.average(ps3d[:, idx_t[0], idx_t[1]], axis=1)
-            self.ps2d_se[i] = np.std(ps3d[:, idx_t[0], idx_t[1]], axis=1)/np.sqrt(len(idx_t[0]))
-        self.ps2d = self.ps2d[:, :n_para]
-        self.k_perp = self.k_perp_edge[:-1] + np.mean(np.diff(self.k_perp_edge))/2.
-        
-        return
-
     
     def calc_p_tilda(self, p_dic, normalize=True):
         '''FFT of the 3d p_mat

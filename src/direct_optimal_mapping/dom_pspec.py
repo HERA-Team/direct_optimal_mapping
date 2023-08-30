@@ -187,7 +187,7 @@ class PS_Calc:
         self.k_zz, self.k_xx, self.k_yy = np.meshgrid(self.kz, self.kx, self.ky, indexing='ij')
         self.mask_3d = np.sqrt(self.k_xx**2 + self.k_yy**2) < self.syn_beam_k
         if select_kperp is False:
-            self.mask_3d.fill(True)
+            self.mask_3d.fill(True) # True means unmasked, accepted
 
         self.k_perp = np.sqrt(np.average(self.k_xx, axis=0)**2 + 
                               np.average(self.k_yy, axis=0)**2)
@@ -352,7 +352,7 @@ class PS_Calc:
                 for i in range(n_perp_bin):
                     idx_t = np.where((k_perp[j, :, :] > self.k_perp_edge[i]) & 
                                      (k_perp[j, :, :] < self.k_perp_edge[i+1]))
-                    p_perp_t[i] = np.average(win_col_t_reshaped[j][idx_t])
+                    p_perp_t[i] = np.sum(win_col_t_reshaped[j][idx_t])
                 win_col_t_2d[j] = p_perp_t
             win_2d[:, k] = win_col_t_2d.flatten()
             

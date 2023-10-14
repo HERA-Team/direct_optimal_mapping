@@ -213,6 +213,17 @@ class PS_Calc:
         
         return
 
+    def _px_window(self):
+        '''Calculate the pixel window function to correct for the power spectrum
+        '''
+        phi = np.sinc((self.k_xx * self.res_x_mpch)/(2*np.pi))
+        phi *= np.sinc((self.k_yy * self.res_y_mpch)/(2*np.pi))
+        phi *= np.sinc((self.k_zz * self.res_z_mpch)/(2*np.pi))
+        
+        self.px_win_3d = phi**2
+        
+        return
+    
     def norm_calc(self, p_dic, norm_data=True, select_kperp=True):
         '''Calculating the normalization factor for the 3D power
         spectrum
@@ -232,11 +243,12 @@ class PS_Calc:
         nz, _, _ = p_dic['p_mat_I'].shape
         taper_3d_p = self.taper_3d.reshape((nz, nx * ny))
         rp_mat = p_dic['p_mat_I'] * np.expand_dims(taper_3d_p, axis=2)
+        self._px_window()
         
         n_px = nx * ny
         n_vx = nz * nx * ny
         m_diag = np.zeros(n_vx)
-        for i in range(n_vx):
+        for i in range(n_vx): # looping through columns of the RP matrix
             ifreq = i//n_px
             ip = i%n_px
             col_t = np.zeros(n_vx)
@@ -245,11 +257,10 @@ class PS_Calc:
             col_t_tilda = np.fft.fftn(col_t_reshape, norm='ortho').flatten()
             if select_kperp:
                 col_t_tilda *= self.mask_3d.flatten()
-            m_diag += np.abs(col_t_tilda)**2
+            m_diag += np.abs(col_t_tilda)**2 #* self.px_win_3d.flatten()[i] # applying the px window function
         self.m_diag = m_diag
         if norm_data is True:
-            self.ps3d = self.ps3d/m_diag.reshape((nz, nx, ny))        
-        
+            self.ps3d = self.ps3d/m_diag.reshape((nz, nx, ny))/self.px_win_3d
         return
     
     def calc_p_tilda(self, p_dic, normalize=True):
@@ -294,7 +305,8 @@ class PS_Calc:
 #             p_row_tilda = np.conjugate(p_row_tilda)
             p_tilda[i, :] = p_row_tilda# * self.voxel_volume
 #         p_tilda = p_tilda * self.voxel_volume       
-        self.h_mat = np.abs(p_tilda)**2
+        self._px_window()
+        self.h_mat = np.abs(p_tilda)**2 * self.px_win_3d.flatten()[np.newaxis, :]
         self.p_tilda = p_tilda
         self.h_mat_masked = self.h_mat * self.mask_3d.flatten()[np.newaxis, :]
         self.h_sum3d = np.sum(self.h_mat_masked, axis=1).reshape(shape)

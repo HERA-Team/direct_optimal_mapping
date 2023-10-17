@@ -268,7 +268,10 @@ class OptMapping:
         pyuvbeam = UVBeam()
         pyuvbeam.read_beamfits(beam_file)
         if pyuvbeam.beam_type == 'efield':
-            pyuvbeam.efield_to_power()
+            if self.uv.polarization_array[0] in [1, 2, 3, 4]:
+                pyuvbeam.efield_to_pstokes()
+            elif self.uv.polarization_arr[0] in [-5, -6, -7, -8]:
+                pyuvbeam.efield_to_power()
         pyuvbeam.select(polarizations=self.uv.polarization_array)
         pyuvbeam.peak_normalize()
         pyuvbeam.interpolation_function = 'az_za_simple'

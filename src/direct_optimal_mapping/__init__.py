@@ -2,8 +2,6 @@ import sys
 from . import optimal_mapping
 from . import data_conditioning
 from . import pixel_selection
-from . import optimal_mapping_horizon
-from . import optimal_mapping_radec_grid
 from . import dom_pspec
 
 if sys.version_info[:2] >= (3, 8):

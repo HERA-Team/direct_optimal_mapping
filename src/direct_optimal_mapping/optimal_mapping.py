@@ -270,7 +270,7 @@ class OptMapping:
         if pyuvbeam.beam_type == 'efield':
             if self.uv.polarization_array[0] in [1, 2, 3, 4]:
                 pyuvbeam.efield_to_pstokes()
-            elif self.uv.polarization_arr[0] in [-5, -6, -7, -8]:
+            elif self.uv.polarization_array[0] in [-5, -6, -7, -8]:
                 pyuvbeam.efield_to_power()
         pyuvbeam.select(polarizations=self.uv.polarization_array)
         pyuvbeam.peak_normalize()

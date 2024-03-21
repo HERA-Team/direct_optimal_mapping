@@ -90,9 +90,11 @@ class PS_Calc:
         self.n_voxel = self.nx*self.ny*self.nz
 
         dist_cm_h_avg = np.mean(self.dist_cm_h)
+        
+        self.dec_center_deg = np.mean(self.px_dic['dec_deg'][0, :])
 
         self.res_x_deg = np.mean(np.diff(self.px_dic['ra_deg'][:, 0]))
-        self.res_x_mpch = np.radians(self.res_x_deg)*dist_cm_h_avg.value
+        self.res_x_mpch = np.radians(self.res_x_deg) * dist_cm_h_avg.value * np.cos(np.radians(self.dec_center_deg)) 
 
         self.res_y_deg = np.mean(np.diff(self.px_dic['dec_deg'][0, :]))
         self.res_y_mpch = np.radians(self.res_y_deg)*dist_cm_h_avg.value

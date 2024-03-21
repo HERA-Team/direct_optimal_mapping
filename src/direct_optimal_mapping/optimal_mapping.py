@@ -67,8 +67,7 @@ class SkyPx:
         edge_ra, edge_dec = np.mgrid[ra_ctr_deg - ra_rng_deg/2.:ra_ctr_deg + ra_rng_deg/2.:(n_ra+1)*1j,
                                      dec_ctr_deg - dec_rng_deg/2.:dec_ctr_deg + dec_rng_deg/2.:(n_dec+1)*1j]
         delta_phi = np.radians(edge_ra[1:, :-1]) - np.radians(edge_ra[:-1, :-1])
-        edge_dec_shift = edge_dec - dec_ctr_deg #Moving the horizon to the dec center to minize the curve-sky effect
-        delta_sin_theta = np.sin(np.radians(edge_dec_shift[:-1, 1:])) - np.sin(np.radians(edge_dec_shift[:-1, :-1]))
+        delta_sin_theta = np.sin(np.radians(edge_dec[:-1, 1:])) - np.sin(np.radians(edge_dec[:-1, :-1]))
         delta_sa = delta_phi*delta_sin_theta
         # pixel center
         ra_res_deg = ra_rng_deg/n_ra

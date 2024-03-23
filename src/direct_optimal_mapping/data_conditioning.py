@@ -70,12 +70,25 @@ class DataConditioning:
         '''
         uvn = copy.deepcopy(self.uv_1d)
         if self.has_auto == True:
-            for bl in uvn.get_antpairs():
-                radiometer = np.sqrt(uvn.channel_width * uvn.get_nsamples(bl, squeeze='none') * np.mean(uvn.integration_time))
-                # get indices of this baseline
-                inds = uvn.antpair2ind(bl)
-                # insert uv_ready for this cross-corr
-                uvn.data_array[inds] = np.sqrt(self.uv_auto.get_data((bl[0], bl[0]), squeeze='none').real * \
+            # is this red-averaged data?
+            if (self.uv_auto.data_array.shape[0]==len(np.unique(self.uv_1d.time_array))):
+                # set the antenna number for noise calculation
+                nsant=self.uv_auto.get_antpairs()[0][0]
+                print('File has one auto (antenna %d)for each time stamp - probably red-ave' % nsant)
+                for bl in uvn.get_antpairs():
+                    radiometer = np.sqrt(uvn.channel_width * uvn.get_nsamples(bl, squeeze='none') * np.mean(uvn.integration_time))
+                    inds = uvn.antpair2ind(bl)
+                    # use the single auto at each time stampe
+                    uvn.data_array[inds] = np.sqrt(self.uv_auto.get_data((nsant, nsant), squeeze='none').real * \
+                                               self.uv_auto.get_data((nsant, nsant), squeeze='none').real) / radiometer
+            else:
+                print('File seems to have auto information for the individual antennas')
+                for bl in uvn.get_antpairs():
+                    radiometer = np.sqrt(uvn.channel_width * uvn.get_nsamples(bl, squeeze='none') * np.mean(uvn.integration_time))
+                    # get indices of this baseline
+                    inds = uvn.antpair2ind(bl)
+                    # insert uv_ready for this cross-corr
+                    uvn.data_array[inds] = np.sqrt(self.uv_auto.get_data((bl[0], bl[0]), squeeze='none').real * \
                                                self.uv_auto.get_data((bl[1], bl[1]), squeeze='none').real) / radiometer
                 # OR all flags
                 neg_auto_flag = (self.uv_auto.get_data((bl[0], bl[0]), squeeze='none') < 0) +\

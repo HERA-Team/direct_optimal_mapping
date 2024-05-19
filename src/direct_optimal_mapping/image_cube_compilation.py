@@ -19,7 +19,7 @@ class ImgCube:
 #                                               bounds_error=False, fill_value='extrapolate')
         return
         
-    def image_cube_calc(self, aper_dia=14):
+    def image_cube_calc(self, aper_dia=14, units='unnormalized'):
         '''Image cube compilation
         '''
         assert len(self.files_n5) == len(self.files_n6), 'Pol-5 and Pol-6 do not have same number of maps.'
@@ -50,36 +50,43 @@ class ImgCube:
 #             syn_sa = self.sa_interp(freq_mhz)
 #             print(i, freq_mhz, 'MHz', end=',')
             
-            # normalization d calculation
-            d_diag = 1/map_dic_n5['beam_weight_sum']# * np.square(map_dic_n5['px_dic']['sa_sr']).flatten()) # vis -> Jy/sr
-            self.px_sa = map_dic_n5['px_dic']['sa_sr'].flatten()
+            if units=='unnormalized':
+                # normalization d calculation
+                d_diag = 1/map_dic_n5['beam_weight_sum']# * np.square(map_dic_n5['px_dic']['sa_sr']).flatten()) # vis -> Jy/sr
+                self.px_sa = map_dic_n5['px_dic']['sa_sr'].flatten()
 #             d_diag = 1/(map_dic_n5['beam_weight_sum'] * map_dic_n5['px_dic']['sa_sr'].flatten() * syn_sa) # vis -> Jy/sr
-            jy2mKsr = 1e-26*const.c.value**2/2/(1e6*freq_mhz)**2/const.k_B.value*1e3
+                jy2mKsr = 1e-26*const.c.value**2/2/(1e6*freq_mhz)**2/const.k_B.value*1e3
 #             d_diag = d_diag * jysr2mk.value # Jy/sr -> mK
-            corr = np.sum(map_dic_n5['beam_sq_weight_sum']/map_dic_n5['n_vis'])/len(map_dic_n5['beam_sq_weight_sum'])
+                corr = np.sum(map_dic_n5['beam_sq_weight_sum']/map_dic_n5['n_vis'])/len(map_dic_n5['beam_sq_weight_sum'])
+                map_n5_t = map_dic_n5['map_sum'].squeeze() * d_diag * jy2mKsr / beam_sa #* syn_beam_sa) # / beam_dilution
+                map_n6_t = map_dic_n6['map_sum'].squeeze() * d_diag * jy2mKsr / beam_sa #* syn_beam_sa) # / beam_dilution
+            else:
+                map_n5_t = map_dic_n5['map_sum'].squeeze() 
+                map_n6_t = map_dic_n6['map_sum'].squeeze() 
 
-            map_n5_t = map_dic_n5['map_sum'].squeeze() * d_diag * jy2mKsr / beam_sa #* syn_beam_sa) # / beam_dilution
-            map_n6_t = map_dic_n6['map_sum'].squeeze() * d_diag * jy2mKsr / beam_sa #* syn_beam_sa) # / beam_dilution
+
             
             if i == 0:
                 data_dic = {'px_dic':map_dic_n5['px_dic']}
                 img_cube_n5 = map_n5_t
                 img_cube_n6 = map_n6_t
                 freq_mhz_arr = np.array([freq_mhz,])
-                self.d_diag = d_diag
-                self.jy2mKsr = jy2mKsr
-                self.beam_sa = beam_sa
-                self.syn_beam_sa = syn_beam_sa
-                self.beam_pwr_corr = corr
+                if units=='unnormalized':
+                    self.d_diag = d_diag
+                    self.jy2mKsr = jy2mKsr
+                    self.beam_sa = beam_sa
+                    self.syn_beam_sa = syn_beam_sa
+                    self.beam_pwr_corr = corr
             else:
                 img_cube_n5 = np.vstack((img_cube_n5, map_n5_t))
                 img_cube_n6 = np.vstack((img_cube_n6, map_n5_t))
                 freq_mhz_arr = np.append(freq_mhz_arr, freq_mhz)
-                self.d_diag = np.vstack((self.d_diag, d_diag))
-                self.jy2mKsr = np.vstack((self.jy2mKsr, jy2mKsr))
-                self.beam_sa = np.vstack((self.beam_sa, beam_sa))
-                self.syn_beam_sa = np.vstack((self.syn_beam_sa, syn_beam_sa))
-                self.beam_pwr_corr = np.vstack((self.beam_pwr_corr, corr))
+                if units=='unnormalized':
+                    self.d_diag = np.vstack((self.d_diag, d_diag))
+                    self.jy2mKsr = np.vstack((self.jy2mKsr, jy2mKsr))
+                    self.beam_sa = np.vstack((self.beam_sa, beam_sa))
+                    self.syn_beam_sa = np.vstack((self.syn_beam_sa, syn_beam_sa))
+                    self.beam_pwr_corr = np.vstack((self.beam_pwr_corr, corr))
                 
         img_cube_n5 = img_cube_n5.squeeze().reshape(((-1, *map_dic_n5['px_dic']['ra_deg'].shape)))
         img_cube_n6 = img_cube_n6.squeeze().reshape(((-1, *map_dic_n6['px_dic']['ra_deg'].shape)))
@@ -88,8 +95,9 @@ class ImgCube:
         data_dic['data_cube_pol-6'] = img_cube_n6
         data_dic['data_cube_I'] = 0.5*(img_cube_n5 + img_cube_n6)
         data_dic['freq_mhz'] = freq_mhz_arr
-        data_dic['beam_pwr_corr'] = np.mean(self.beam_pwr_corr)
-        data_dic['syn_beam_sr'] = np.sqrt(self.syn_beam_sa)
+        if units=='unnormalized':
+            data_dic['beam_pwr_corr'] = np.mean(self.beam_pwr_corr)
+            data_dic['syn_beam_sr'] = np.sqrt(self.syn_beam_sa)
         self.data_dic = data_dic
         
         return self.data_dic

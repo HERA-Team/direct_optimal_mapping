@@ -1,10 +1,11 @@
-This package provides a tool to map radio interferometric data with the direct optimal mapping method.
+This package provides a tool to map radio interferometric data with the direct optimal mapping method and the related power spectrum calculation.
 
-An accompanying paper is published:  
-Xu et al. 2022, <https://arxiv.org/abs/2204.06021>
+Accompanying papers are published in:  
+Xu et al. 2022, <https://iopscience.iop.org/article/10.3847/1538-4357/ac9053>
+Xu et al. 2024, <https://iopscience.iop.org/article/10.3847/1538-4357/ad528c>
 
 This package is specifically developed
-for the HERA project, bu can be easilly adapted for other interferometric experiments.
+for the HERA project, but can be easily adapted for other interferometric experiments.
 
 Installation
 ===========

@@ -1,7 +1,7 @@
 This package provides a tool to map radio interferometric data with the direct optimal mapping method and the related power spectrum calculation.
 
 Accompanying papers are published in:  
-Xu et al. 2022, <https://iopscience.iop.org/article/10.3847/1538-4357/ac9053>
+Xu et al. 2022, <https://iopscience.iop.org/article/10.3847/1538-4357/ac9053>  
 Xu et al. 2024, <https://iopscience.iop.org/article/10.3847/1538-4357/ad528c>
 
 This package is specifically developed

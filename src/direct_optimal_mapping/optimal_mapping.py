@@ -207,8 +207,8 @@ class OptMapping:
         self.frequency = np.squeeze(self.uv.freq_array)
         self.wavelength = constants.c.value/self.frequency
                 
-        data = np.squeeze(self.uv.data_array, axis=(1, 2, 3))
-        flag = np.squeeze(self.uv.flag_array, axis=(1, 2, 3))
+        data = np.squeeze(self.uv.data_array, axis=(1, 2))
+        flag = np.squeeze(self.uv.flag_array, axis=(1, 2))
         self.data = np.expand_dims(data, axis=1)
         self.flag = np.expand_dims(flag, axis=1)
         self.nvis = len(data)
@@ -340,7 +340,7 @@ class OptMapping:
                                                          za_array=np.pi/2. - alt_t, 
                                                          az_za_grid=False, freq_array= freq_array,
                                                          reuse_spline=True, check_azza_domain=False)
-                beam_map_t = pyuvbeam_interp[0, 0, 0, 0].real
+                beam_map_t = pyuvbeam_interp[0, 0, 0].real
             
             idx_time = np.where(self.uv.time_array == time_t)[0]
             self.phase_mat[idx_time] = uvw_sign*2*np.pi/self.wavelength*(self.uv.uvw_array[idx_time]@lmn_t)
@@ -371,10 +371,10 @@ class OptMapping:
             whether normalize the sum of N^-1 diagonal terms
         '''
         if matrix:
-            inv_noise_mat = np.diag(np.squeeze(uvn.data_array, axis=(1, 2, 3)).real**(-2))
+            inv_noise_mat = np.diag(np.squeeze(uvn.data_array, axis=(1, 2)).real**(-2))
             self.norm_factor = np.sum(np.diag(inv_noise_mat))
         else:
-            inv_noise_mat = np.squeeze(uvn.data_array, axis=(1, 2, 3)).real**(-2)          
+            inv_noise_mat = np.squeeze(uvn.data_array, axis=(1, 2)).real**(-2)          
             self.norm_factor = np.sum(inv_noise_mat)
         if norm:
             inv_noise_mat = inv_noise_mat/self.norm_factor

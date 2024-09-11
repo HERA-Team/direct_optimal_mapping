@@ -22,9 +22,7 @@ class DataConditioning:
         ipol: integer [-5 - -8]
             select the linear polarization (-5:-8 (XX, YY, XY, YX))
         '''
-        if uv.phase_type != 'drift':
-            uv.unphase_to_drift()
-            print('Unphased to drift.')
+        uv.unproject_phase()
         self.ifreq = ifreq
         self.ipol = ipol
         uv_cross = uv.select(ant_str='cross', inplace=False)
@@ -167,7 +165,7 @@ class DataConditioning:
         n_bl = np.array([len(grp_t) for grp_t in bl_grp])
         for time_t in np.unique(self.uvn.time_array):
             idx_t = np.where(self.uvn.time_array == time_t)[0]
-            self.uvn.data_array[idx_t, 0, 0, 0] /= np.sqrt(n_bl)
+            self.uvn.data_array[idx_t, 0, 0] /= np.sqrt(n_bl)
             
         self.log.append('Redundant averaged.')
         return

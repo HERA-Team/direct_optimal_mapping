@@ -317,10 +317,65 @@ class OptMapping:
         ---------
         .a_mat: 2d matrix (complex128)
             a_matrix (Nvis X Npsf) from the given observation
+        .beam_mat: 2d matrix (float64)
+            a_matrix with only the beam term considered (Nvis X Npsf)
+        '''
+        self.phase_mat = np.zeros((self.nvis, self.npx), dtype='float64')
+        self.beam_mat = np.zeros(self.phase_mat.shape, dtype='float64')
+        self.sa_mat = np.zeros(self.phase_mat.shape, dtype='float64')
+        if self.beam_file != 'Airy':
+            self.set_pyuvbeam(beam_file=self.beam_file)
+        freq_array = np.array([self.frequency,])
+        for time_t in np.unique(self.uv.time_array):
+            az_t, alt_t = self._radec2azalt(self.ra, self.dec, time_t)
+            lmn_t = np.array([np.cos(alt_t)*np.sin(az_t), 
+                              np.cos(alt_t)*np.cos(az_t), 
+                              np.sin(alt_t)])
+            
+            if self.beam_file == 'Airy':
+                print('Airy beam.')
+                beam_map_t = self.airy_beam(az_t, alt_t, freq_array[0])
+            else:
+                pyuvbeam_interp,_ = self.pyuvbeam.interp(az_array=np.mod(np.pi/2. - az_t, 2*np.pi), 
+                                                         za_array=np.pi/2. - alt_t, 
+                                                         az_za_grid=False, freq_array= freq_array,
+                                                         reuse_spline=True, check_azza_domain=False)
+                beam_map_t = pyuvbeam_interp[0, 0, 0].real
+            
+            idx_time = np.where(self.uv.time_array == time_t)[0]
+            self.phase_mat[idx_time] = uvw_sign*2*np.pi/self.wavelength*(self.uv.uvw_array[idx_time]@lmn_t)
+            self.beam_mat[idx_time] = np.tile(beam_map_t, idx_time.size).reshape(idx_time.size, -1)
+            self.sa_mat[idx_time] = np.tile(self.px_sa, idx_time.size).reshape(idx_time.size, -1)
+            
+        self.a_mat = ne.evaluate('exp(A * 1j)', global_dict={'A':self.phase_mat})
+        
+        if apply_beam:
+            self.beam_mat[self.flag.flatten()] = 0
+            self.a_mat = np.multiply(self.a_mat, self.beam_mat)
+        
+#         self.a_mat = np.multiply(self.a_mat, self.sa_mat)
+
+        return 
+    
+    def set_aonly_mat(self, uvw_sign=1, apply_beam=True):
+        '''Calculating A matrix, covering the range defined by the px_dic object
+        Does not apply flags from data!
+        Beam calculation stays internal to the method
+        
+        Parameters
+        ----------
+        uvw_sign: 1 or -1
+            uvw sign for the baseline calculation
+        apply_beam: boolean
+            Whether apply beam to the a matrix elements, default:true
+        
+        Attribute
+        ---------
+        .a_mat: 2d matrix (complex128)
+            a_matrix (Nvis X Npsf) from the given observation
         '''
         self.phase_mat = np.zeros((self.nvis, self.npx), dtype='float64')
         beam_mat = np.zeros(self.phase_mat.shape, dtype='float64')
-        #print(beam_mat[0,0])
         self.sa_mat = np.zeros(self.phase_mat.shape, dtype='float64')
         if self.beam_file != 'Airy':
             self.set_pyuvbeam(beam_file=self.beam_file)

@@ -451,7 +451,8 @@ class OptMapping:
             self.beam_mat[idx_time] = np.tile(beam_map_t, idx_time.size).reshape(idx_time.size, -1)
             self.sa_mat[idx_time] = np.tile(self.px_sa, idx_time.size).reshape(idx_time.size, -1)
             
-        self.beam_mat[self.flag.flatten()] = 0
+        # remove this November 2024 to enable horizon mapping
+        #self.beam_mat[self.flag.flatten()] = 0
         
         return 
 

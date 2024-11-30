@@ -3,6 +3,7 @@ from pyuvdata import UVData
 from direct_optimal_mapping import optimal_mapping
 from direct_optimal_mapping import data_conditioning
 import copy
+import sys
 
 class HorizonMap:
     '''This class takes the optimal_mapping data conditioning object
@@ -11,7 +12,8 @@ class HorizonMap:
     '''
 
     def __init__(self, dc, ra_ctr_deg, ra_rng_deg, dec_ctr_deg, dec_rng_deg,
-                 wts='optimal', norm='one-beam', epoch_map='J2000', uvw_sign=1):
+                 wts='optimal', norm='one-beam', epoch_map='J2000', uvw_sign=1,
+                 buffer=True):
 
         '''
         Parameters
@@ -25,7 +27,8 @@ class HorizonMap:
         norm:  normalization computed and applied to the map
         epoch_map:  epoch of the map coordinate system
         uvw_sign:  same convention as optimal mapping object
-      
+        buffer: add a buffer for weighting edge effects and numpy rolls, then trim it
+
         Note: ra and dec ranges are specified in COORDINATE degrees
         Example: for a 10-degree ARC on the sky at dec=30deg, specify 10deg/0.8666
         East-West cell size will be one time integration
@@ -41,6 +44,7 @@ class HorizonMap:
         self.norm = norm
         self.epoch_map = epoch_map
         self.uvw_sign = uvw_sign 
+        self.buffer = buffer
 
         if wts != 'optimal':
             print('Only optimal weighting is implemented so far')
@@ -53,7 +57,15 @@ class HorizonMap:
 
         #
         # set up pixels
+        # if buffer==True, a buffer allowing for the roll and edge 
+        # effects is put in, then later removed
         #
+
+        if self.buffer==True:
+            print('Buffering the edges of the map')
+        else:
+            print('Not buffering the edge of the map.  Beware edge effects.')
+
         nra=self.ra_rng_deg*3600./(self.dc.uv_1d.integration_time[0]*15.)
         nra=int(nra)
         ndec=self.dec_rng_deg*3600./(self.dc.uv_1d.integration_time[0]*15.*np.cos(self.dec_ctr_deg*np.pi/180.))
@@ -62,8 +74,26 @@ class HorizonMap:
         print('ra: ',self.ra_ctr_deg,self.ra_rng_deg,nra,' dec: ',self.dec_ctr_deg,self.dec_rng_deg,ndec)
         temp=self.ra_rng_deg*np.cos(self.dec_ctr_deg*np.pi/180.)/nra
         print('cell sizes in arc deg based on int time are ',temp,self.dec_rng_deg/ndec,)
-        pixels = optimal_mapping.SkyPx()
-        pixel_dict=pixels.calc_radec_pix(self.ra_ctr_deg,self.ra_rng_deg,nra,self.dec_ctr_deg,self.dec_rng_deg,ndec)
+        #
+        # compute buffer 
+        # the buffer has to be an even number of pixels, or else it cannot be 
+        # accommodated by the logic of the pixel object
+        # The buffer needs to as long as the number of time stamps minus 1.
+        #
+        nbuffer=0
+        buffer_deg=0.
+        delra_deg=0.
+        if self.buffer==True:
+            nbuffer = int(len(np.unique(self.dc.uv_1d.time_array)) - 1)
+            if (nbuffer%2) != 0: nbuffer=nbuffer+1
+            buffer_deg=nbuffer*self.dc.uv_1d.integration_time[0]*15./3600.  # this is in coordinate degrees
+            print('buffer is ',nbuffer,' pixels = ',buffer_deg,' coordinate degrees')
+            print('Including buffer, nra and ndec are ',nra+nbuffer,ndec)
+        #
+        # set up map pixels
+        #
+        pixels = optimal_mapping.SkyPx()  
+        pixel_dict=pixels.calc_radec_pix(self.ra_ctr_deg,self.ra_rng_deg+buffer_deg,nra+nbuffer,self.dec_ctr_deg,self.dec_rng_deg,ndec)
         #
         # compute noise matrix (assumed diagonal)
         #
@@ -74,10 +104,11 @@ class HorizonMap:
         if (np.sum(self.dc.uvn.data_array)==len(self.dc.uvn.data_array)):
             print('Unable to calculate noise:  sigma-n is ones')
         #
-        # set reference at center of time span
+        # set reference LST at middle of time span
         #
         ulsts=np.unique(self.dc.uv_1d.lst_array)
-        ref_lst_index=int(len(ulsts)/2-1)
+        ref_lst_index=int(len(ulsts)/2)
+        print('Reference LST index is ',ref_lst_index)
         self.ref_lst_deg=ulsts[ref_lst_index]*180./np.pi
         print('Reference LST index is ',ref_lst_index)
         print('Reference LST is ',self.ref_lst_deg,' degrees')
@@ -102,8 +133,8 @@ class HorizonMap:
         #
         # compute maps
         #
-        self.avmap=np.zeros((nra,ndec))
-        self.b1map=np.zeros((nra,ndec))
+        self.avmap=np.zeros((nra+nbuffer,ndec))
+        self.b1map=np.zeros((nra+nbuffer,ndec))
         amatrix=opt_map.phase_mat*opt_map.beam_mat
         for itime, time_stamp in enumerate(np.unique(self.dc.uv_1d.time_array)):
             idx_roll = itime - ref_lst_index
@@ -117,11 +148,34 @@ class HorizonMap:
                 # there is good data, so compute time-stamp map and add to accum array
                 avmapt=np.real(np.matmul(np.conjugate(amatrix).T,np.multiply(wts,vis)))
                 b1mapt=np.real(np.matmul(np.conjugate(opt_map.beam_mat).T,np.multiply(wts,vis*0.+1.)))
-                self.avmap=self.avmap+np.roll(avmapt.reshape(nra,ndec),idx_roll,axis=0)
-                self.b1map=self.b1map+np.roll(b1mapt.reshape(nra,ndec),idx_roll,axis=0)
+                self.avmap=self.avmap+np.roll(avmapt.reshape(nra+nbuffer,ndec),idx_roll,axis=0)
+                self.b1map=self.b1map+np.roll(b1mapt.reshape(nra+nbuffer,ndec),idx_roll,axis=0)
         self.avmap=self.avmap/self.b1map
         self.avmap=np.real(self.avmap)
         self.b1map=np.real(self.b1map)
+        #
+        # Remove buffer
+        #
+        if self.buffer==True:
+            i1=int(nbuffer/2)
+            i2=int(nra+nbuffer/2)
+            self.avmap=self.avmap.reshape(nra+nbuffer,ndec)[i1:i2,:]
+            self.b1map=self.b1map.reshape(nra+nbuffer,ndec)[i1:i2,:]
+        #
+        # Create pixel dictionary of the map with the buffer removed
+        #
+        del pixels
+        pixels = optimal_mapping.SkyPx()
+        pixel_dict=pixels.calc_radec_pix(self.ra_ctr_deg,self.ra_rng_deg,nra,self.dec_ctr_deg,self.dec_rng_deg,ndec)
+        #
+        # check that the map and the pixel dictionary are consistent
+        #
+        if self.avmap.shape != (nra,ndec):
+            print('avmap has shape ',self.avmap.shape)
+            print('nra,ndec,nra*dec are ',nra,ndec,nra*ndec)
+            print('nra in dictionary is ',len(pixel_dict['ra_deg']))
+            print('ndec in dictionary is ',len(pixel_dict['dec_deg']))
+            sys.exit()
         #
         # pack everything into the dictionary.  Don't yet have P
         #
@@ -132,5 +186,5 @@ class HorizonMap:
         mapdict['freq']=self.dc.uv_1d.freq_array[0] # in Hz
         mapdict['polarization']=self.dc.ipol
         mapdict['bl_max']=np.sqrt(np.sum(self.dc.uv_1d.uvw_array**2, axis=1)).max()
-        mapdict['radius2ctr']=0.  # distance of pixels to center.  Do we really need this/
+        mapdict['radius2ctr']=0.  # distance of pixels to center.  Do we really need this?
         return mapdict

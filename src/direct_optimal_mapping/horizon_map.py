@@ -9,11 +9,13 @@ class HorizonMap:
     '''This class takes the optimal_mapping data conditioning object
        and computes the map in horizon coordinates, using a single-time-stamp matrix
        and rotations to speed up the calculation.
+       The maps returned are the normalized sky map (unmap divided by the
+       beam weights map).
     '''
 
     def __init__(self, dc, ra_ctr_deg, ra_rng_deg, dec_ctr_deg, dec_rng_deg,
                  wts='optimal', norm='one-beam', epoch_map='J2000', uvw_sign=1,
-                 buffer=True):
+                 buffer=True, return_b1map=False, return_b2map=False):
 
         '''
         Parameters
@@ -28,6 +30,8 @@ class HorizonMap:
         epoch_map:  epoch of the map coordinate system
         uvw_sign:  same convention as optimal mapping object
         buffer: add a buffer for weighting edge effects and numpy rolls, then trim it
+        return_b1map:  include beam weights map in map dictionary
+        return_b2map:  include beam squared weights map  in map dictionary
 
         Note: ra and dec ranges are specified in COORDINATE degrees
         Example: for a 10-degree ARC on the sky at dec=30deg, specify 10deg/0.8666
@@ -45,6 +49,8 @@ class HorizonMap:
         self.epoch_map = epoch_map
         self.uvw_sign = uvw_sign 
         self.buffer = buffer
+        self.return_b1map = return_b1map
+        self.return_b2map = return_b2map
 
         if wts != 'optimal':
             print('Only optimal weighting is implemented so far')
@@ -133,8 +139,9 @@ class HorizonMap:
         #
         # compute maps
         #
-        self.avmap=np.zeros((nra+nbuffer,ndec))
-        self.b1map=np.zeros((nra+nbuffer,ndec))
+        self.unmap=np.zeros((nra+nbuffer,ndec))
+        if self.return_b1map: self.b1map=np.zeros((nra+nbuffer,ndec))
+        if self.return_b2map: self.b2map=np.zeros((nra+nbuffer,ndec))
         amatrix=opt_map.phase_mat*opt_map.beam_mat
         for itime, time_stamp in enumerate(np.unique(self.dc.uv_1d.time_array)):
             idx_roll = itime - ref_lst_index
@@ -146,21 +153,26 @@ class HorizonMap:
                 print('All flagged for this time stamp - skip it')
             else:  
                 # there is good data, so compute time-stamp map and add to accum array
-                avmapt=np.real(np.matmul(np.conjugate(amatrix).T,np.multiply(wts,vis)))
-                b1mapt=np.real(np.matmul(np.conjugate(opt_map.beam_mat).T,np.multiply(wts,vis*0.+1.)))
-                self.avmap=self.avmap+np.roll(avmapt.reshape(nra+nbuffer,ndec),idx_roll,axis=0)
-                self.b1map=self.b1map+np.roll(b1mapt.reshape(nra+nbuffer,ndec),idx_roll,axis=0)
-        self.avmap=self.avmap/self.b1map
-        self.avmap=np.real(self.avmap)
-        self.b1map=np.real(self.b1map)
+                unmapt=np.real(np.matmul(np.conjugate(amatrix).T,np.multiply(wts,vis)))
+                self.unmap=self.unmap+np.roll(unmapt.reshape(nra+nbuffer,ndec),idx_roll,axis=0)
+                if self.return_b1map:
+                    b1mapt=np.real(np.matmul(np.conjugate(opt_map.beam_mat).T,np.multiply(wts,vis*0.+1.)))
+                    self.b1map=self.b1map+np.roll(b1mapt.reshape(nra+nbuffer,ndec),idx_roll,axis=0)
+                if self.return_b2map:
+                    b2mapt=np.real(np.matmul(np.conjugate(opt_map.beam_mat**2).T,np.multiply(wts,vis*0.+1.)))
+                    self.b2map=self.b2map+np.roll(b2mapt.reshape(nra+nbuffer,ndec),idx_roll,axis=0)
+        self.unmap=np.real(self.unmap)
+        if self.return_b1map: self.b1map=np.real(self.b1map)
+        if self.return_b2map: self.b2map=np.real(self.b2map)
         #
         # Remove buffer
         #
         if self.buffer==True:
             i1=int(nbuffer/2)
             i2=int(nra+nbuffer/2)
-            self.avmap=self.avmap.reshape(nra+nbuffer,ndec)[i1:i2,:]
-            self.b1map=self.b1map.reshape(nra+nbuffer,ndec)[i1:i2,:]
+            self.unmap=self.unmap.reshape(nra+nbuffer,ndec)[i1:i2,:]
+            if self.return_b1map: self.b1map=self.b1map.reshape(nra+nbuffer,ndec)[i1:i2,:]
+            if self.return_b2map: self.b2map=self.b2map.reshape(nra+nbuffer,ndec)[i1:i2,:]
         #
         # Create pixel dictionary of the map with the buffer removed
         #
@@ -170,8 +182,8 @@ class HorizonMap:
         #
         # check that the map and the pixel dictionary are consistent
         #
-        if self.avmap.shape != (nra,ndec):
-            print('avmap has shape ',self.avmap.shape)
+        if self.unmap.shape != (nra,ndec):
+            print('unmap has shape ',self.unmap.shape)
             print('nra,ndec,nra*dec are ',nra,ndec,nra*ndec)
             print('nra in dictionary is ',len(pixel_dict['ra_deg']))
             print('ndec in dictionary is ',len(pixel_dict['dec_deg']))
@@ -180,8 +192,9 @@ class HorizonMap:
         # pack everything into the dictionary.  Don't yet have P
         #
         mapdict={'px_dic':pixel_dict}
-        mapdict['map_sum']=self.avmap
-        mapdict['weight_sum']=self.b1map
+        mapdict['map_sum']=self.unmap/self.b1map
+        if self.return_b1map: mapdict['beam_weight_sum']=self.b1map
+        if self.return_b2map: mapdict['beam_sq_weight_sum']=self.b2map
         mapdict['n_vis']=self.dc.uv_1d.data_array.shape[0]  # Zhilei's def.  Does not include nsamples
         mapdict['freq']=self.dc.uv_1d.freq_array[0] # in Hz
         mapdict['polarization']=self.dc.ipol

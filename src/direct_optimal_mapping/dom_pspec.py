@@ -3,7 +3,8 @@ import scipy
 from astropy.cosmology import WMAP9 as cosmo
 import astropy.units as u
 from astropy.cosmology.units import littleh, with_H0
-import hera_pspec.conversions as conversions
+# import hera_pspec.conversions as conversions  - importing this brings a huge amount of baggage
+from direct_optimal_mapping import conversions
 from uvtools import dspec
 
 class PS_Calc:
@@ -11,7 +12,7 @@ class PS_Calc:
     mapping data cubes
     '''
     def __init__(self, data_cube_dic1, data_cube_dic2=None, 
-                 par_taper='bh', per_taper='tukey'):
+                 par_taper='bh', per_taper='tukey', units='unnormalized'):
         '''Initialization of the class
         
         Parameters
@@ -26,6 +27,8 @@ class PS_Calc:
             Taper function type along the frequency axis and across the sky-plane
             accepted inputs are 'tophat', 'hann', 'tukey', 'bh4', 'bh7', 'cs9', and 'cs11'
             No tapering when None is given
+        units: str
+            The map units, or 'unnormalized' if raw map sum
 
         Returns
         -------
@@ -37,8 +40,10 @@ class PS_Calc:
         self.px_dic = data_cube_dic1['px_dic']
         self.data_cube1 = data_cube_dic1['data_cube_I']
         self.data_cube2 = data_cube_dic2['data_cube_I']
-        self.beam_pwr_corr = data_cube_dic1['beam_pwr_corr']
-        self.syn_beam_sr = data_cube_dic1['syn_beam_sr']
+        self.units=units
+        if units=='unnormalized':
+            self.beam_pwr_corr = data_cube_dic1['beam_pwr_corr']
+            self.syn_beam_sr = data_cube_dic1['syn_beam_sr']
         self.par_taper = par_taper
         self.per_taper = per_taper
         self.nz, self.nx, self.ny = self.data_cube1.shape

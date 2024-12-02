@@ -7,10 +7,11 @@ import sys
 
 class HorizonMap:
     '''This class takes the optimal_mapping data conditioning object
-       and computes the map in horizon coordinates, using a single-time-stamp matrix
-       and rotations to speed up the calculation.
-       The maps returned are the normalized sky map (unmap divided by the
-       beam weights map).
+       and computes the normalized map in horizon coordinates, using 
+       a single-time-stamp matrix and rotations to speed up the calculation.
+       The maps returned in the map dictionary are the normalized sky map 
+       (unmap divided by the beam weights map), and the beam weight maps 
+       if requested.
     '''
 
     def __init__(self, dc, ra_ctr_deg, ra_rng_deg, dec_ctr_deg, dec_rng_deg,
@@ -54,8 +55,8 @@ class HorizonMap:
 
         if wts != 'optimal':
             print('Only optimal weighting is implemented so far')
-        if norm != 'one-beam':
-            print('Only one-beam normalization is implemented so far')
+        if (norm != 'one-beam') and (norm != 'two-beam'):
+            print('Only one-beam and two-beam normalizations are implemented so far')
 
         return
     
@@ -140,8 +141,8 @@ class HorizonMap:
         # compute maps
         #
         self.unmap=np.zeros((nra+nbuffer,ndec))
-        if self.return_b1map: self.b1map=np.zeros((nra+nbuffer,ndec))
-        if self.return_b2map: self.b2map=np.zeros((nra+nbuffer,ndec))
+        if self.return_b1map or self.norm=='one-beam': self.b1map=np.zeros((nra+nbuffer,ndec))
+        if self.return_b2map or self.norm=='two-beam': self.b2map=np.zeros((nra+nbuffer,ndec))
         amatrix=opt_map.phase_mat*opt_map.beam_mat
         for itime, time_stamp in enumerate(np.unique(self.dc.uv_1d.time_array)):
             idx_roll = itime - ref_lst_index
@@ -155,15 +156,15 @@ class HorizonMap:
                 # there is good data, so compute time-stamp map and add to accum array
                 unmapt=np.real(np.matmul(np.conjugate(amatrix).T,np.multiply(wts,vis)))
                 self.unmap=self.unmap+np.roll(unmapt.reshape(nra+nbuffer,ndec),idx_roll,axis=0)
-                if self.return_b1map:
+                if self.return_b1map or self.norm=='one-beam':
                     b1mapt=np.real(np.matmul(np.conjugate(opt_map.beam_mat).T,np.multiply(wts,vis*0.+1.)))
                     self.b1map=self.b1map+np.roll(b1mapt.reshape(nra+nbuffer,ndec),idx_roll,axis=0)
-                if self.return_b2map:
+                if self.return_b2map or self.norm=='two-beam':
                     b2mapt=np.real(np.matmul(np.conjugate(opt_map.beam_mat**2).T,np.multiply(wts,vis*0.+1.)))
                     self.b2map=self.b2map+np.roll(b2mapt.reshape(nra+nbuffer,ndec),idx_roll,axis=0)
         self.unmap=np.real(self.unmap)
-        if self.return_b1map: self.b1map=np.real(self.b1map)
-        if self.return_b2map: self.b2map=np.real(self.b2map)
+        if self.return_b1map or self.norm=='one-beam': self.b1map=np.real(self.b1map)
+        if self.return_b2map or self.norm=='two-beam': self.b2map=np.real(self.b2map)
         #
         # Remove buffer
         #
@@ -171,8 +172,8 @@ class HorizonMap:
             i1=int(nbuffer/2)
             i2=int(nra+nbuffer/2)
             self.unmap=self.unmap.reshape(nra+nbuffer,ndec)[i1:i2,:]
-            if self.return_b1map: self.b1map=self.b1map.reshape(nra+nbuffer,ndec)[i1:i2,:]
-            if self.return_b2map: self.b2map=self.b2map.reshape(nra+nbuffer,ndec)[i1:i2,:]
+            if self.return_b1map or self.norm=='one-beam': self.b1map=self.b1map.reshape(nra+nbuffer,ndec)[i1:i2,:]
+            if self.return_b2map or self.norm=='two-beam': self.b2map=self.b2map.reshape(nra+nbuffer,ndec)[i1:i2,:]
         #
         # Create pixel dictionary of the map with the buffer removed
         #
@@ -192,7 +193,8 @@ class HorizonMap:
         # pack everything into the dictionary.  Don't yet have P
         #
         mapdict={'px_dic':pixel_dict}
-        mapdict['map_sum']=self.unmap/self.b1map
+        if self.norm=='one-beam': mapdict['map_sum']=self.unmap/self.b1map
+        if self.norm=='two-beam': mapdict['map_sum']=self.unmap/self.b2map
         if self.return_b1map: mapdict['beam_weight_sum']=self.b1map
         if self.return_b2map: mapdict['beam_sq_weight_sum']=self.b2map
         mapdict['n_vis']=self.dc.uv_1d.data_array.shape[0]  # Zhilei's def.  Does not include nsamples

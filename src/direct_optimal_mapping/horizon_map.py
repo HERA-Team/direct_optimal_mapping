@@ -11,12 +11,16 @@ class HorizonMap:
        a single-time-stamp matrix and rotations to speed up the calculation.
        The maps returned in the map dictionary are the normalized sky map 
        (unmap divided by the beam weights map), and the beam weight maps 
-       if requested.
+       if requested.  There is also the option to return the P-matrix.
+       Warning:  P-matrix computation is very resource-intensive.
+       The pmatrix_factor is not yet implemented, but it should be -
+       pmatrix_factor=1 is not large enough for most applications.
     '''
 
     def __init__(self, dc, ra_ctr_deg, ra_rng_deg, dec_ctr_deg, dec_rng_deg,
                  wts='optimal', norm='one-beam', epoch_map='J2000', uvw_sign=1,
-                 buffer=True, return_b1map=False, return_b2map=False):
+                 buffer=True, return_b1map=False, return_b2map=False,
+                 return_pmatrix=False, pmatrix_factor=1):
 
         '''
         Parameters
@@ -33,6 +37,8 @@ class HorizonMap:
         buffer: add a buffer for weighting edge effects and numpy rolls, then trim it
         return_b1map:  include beam weights map in map dictionary
         return_b2map:  include beam squared weights map  in map dictionary
+        return_pmatrix: include the PSF matrix in map dictionary
+        pmatrix_factor: the linear scale factor by which the [P] sky dimension is larger than the map sky dimension
 
         Note: ra and dec ranges are specified in COORDINATE degrees
         Example: for a 10-degree ARC on the sky at dec=30deg, specify 10deg/0.8666
@@ -52,16 +58,21 @@ class HorizonMap:
         self.buffer = buffer
         self.return_b1map = return_b1map
         self.return_b2map = return_b2map
+        self.return_pmatrix = return_pmatrix
+        self.pmatrix_factor = pmatrix_factor
 
         if wts != 'optimal':
             print('Only optimal weighting is implemented so far')
         if (norm != 'one-beam') and (norm != 'two-beam'):
             print('Only one-beam and two-beam normalizations are implemented so far')
+        if return_pmatrix:
+            print('Warning: P-matrix computation is very preliminary')
+        if pmatrix_factor!=1: 
+            print('Only pmatrix_factor = 1 is implemented so far')
 
         return
     
     def calc_map(self):
-
         #
         # set up pixels
         # if buffer==True, a buffer allowing for the roll and edge 
@@ -109,13 +120,12 @@ class HorizonMap:
         # check whether noise was calculated (noise array is 1D)
         #
         if (np.sum(self.dc.uvn.data_array)==len(self.dc.uvn.data_array)):
-            print('Unable to calculate noise:  sigma-n is ones')
+            print('Unable to calculate noise:  sigma-n has been set to ones')
         #
         # set reference LST at middle of time span
         #
         ulsts=np.unique(self.dc.uv_1d.lst_array)
         ref_lst_index=int(len(ulsts)/2)
-        print('Reference LST index is ',ref_lst_index)
         self.ref_lst_deg=ulsts[ref_lst_index]*180./np.pi
         print('Reference LST index is ',ref_lst_index)
         print('Reference LST is ',self.ref_lst_deg,' degrees')
@@ -137,12 +147,39 @@ class HorizonMap:
         if self.wts=='optimal':
             opt_map.set_inv_noise_mat(self.dc.uvn,matrix=False)
             print('inv noise shape ',opt_map.inv_noise_mat.shape)
+            idx=np.where(np.vectorize(np.isnan)(opt_map.inv_noise_mat)==True)[0]
+            if len(idx) > 0:
+                print('Found ',len(idx),' nans in nv noise array; setting to zero')
+                opt_map.inv_noise_mat[idx]=0.
+            idx=np.where(np.vectorize(np.isinf)(opt_map.inv_noise_mat)==True)[0]
+            if len(idx) > 0:
+                print('Found ',len(idx),' infs in nv noise array; setting to zero')
+                opt_map.inv_noise_mat[idx]=0.
         #
-        # compute maps
+        # check and sanitize the vis data 
+        #
+        idx=np.where(np.vectorize(np.isnan)(self.dc.uv_1d.data_array)==True)[0]
+        if len(idx) > 0:
+            print('Found ',len(idx),' nans in visibility array; setting weight to zero')
+            opt_map.inv_noise_mat[idx]=0.
+        idx=np.where(np.vectorize(np.isinf)(self.dc.uv_1d.data_array)==True)[0]
+        if len(idx) > 0:
+            print('Found ',len(idx),' infs in visibility array; setting weight to zero')
+            opt_map.inv_noise_mat[idx]=0.
+        idx=np.where(self.dc.uv_1d.flag_array==True)[0]
+        if len(idx) > 0:
+            print('Found ',len(idx),' flags in visibility array; setting weight to zero')
+            opt_map.inv_noise_mat[idx]=0.
+        #
+        # compute maps (do we have sufficient precision?)
         #
         self.unmap=np.zeros((nra+nbuffer,ndec))
         if self.return_b1map or self.norm=='one-beam': self.b1map=np.zeros((nra+nbuffer,ndec))
         if self.return_b2map or self.norm=='two-beam': self.b2map=np.zeros((nra+nbuffer,ndec))
+        if self.return_pmatrix: 
+            psize=(nra+nbuffer)*ndec*self.pmatrix_factor**2
+            self.pmatrix=np.zeros((psize,psize))
+            print('Warning: pmatrix is big.  Its size is ',psize,' X ',psize)
         amatrix=opt_map.phase_mat*opt_map.beam_mat
         for itime, time_stamp in enumerate(np.unique(self.dc.uv_1d.time_array)):
             idx_roll = itime - ref_lst_index
@@ -151,7 +188,7 @@ class HorizonMap:
             vis=self.dc.uv_1d.data_array[idx_t,0,0]
             wts=opt_map.inv_noise_mat[idx_t]
             if (np.sum(self.dc.uv_1d.flag_array[idx_t])==vis.shape[0]):
-                print('All flagged for this time stamp - skip it')
+                print('All data are flagged for this time stamp - skip it')
             else:  
                 # there is good data, so compute time-stamp map and add to accum array
                 unmapt=np.real(np.matmul(np.conjugate(amatrix).T,np.multiply(wts,vis)))
@@ -162,9 +199,14 @@ class HorizonMap:
                 if self.return_b2map or self.norm=='two-beam':
                     b2mapt=np.real(np.matmul(np.conjugate(opt_map.beam_mat**2).T,np.multiply(wts,vis*0.+1.)))
                     self.b2map=self.b2map+np.roll(b2mapt.reshape(nra+nbuffer,ndec),idx_roll,axis=0)
-        self.unmap=np.real(self.unmap)
-        if self.return_b1map or self.norm=='one-beam': self.b1map=np.real(self.b1map)
-        if self.return_b2map or self.norm=='two-beam': self.b2map=np.real(self.b2map)
+                if self.return_pmatrix:  # this can probably be sped up with diagonal mult
+                    pmt = np.real(np.matmul(np.conjugate(amatrix).T,np.matmul(np.diag(wts),amatrix)))
+                    temp = pmt.reshape((nra+nbuffer)*ndec,(nra+nbuffer)*self.pmatrix_factor*ndec*self.pmatrix_factor)
+                    # this is left-multiply by the rotation matrix transpose - just like the maps
+                    temp = np.roll(temp,idx_roll,axis=0)
+                    temp = np.roll(temp,idx_roll,axis=1)  # negative idx_roll here smears, which surprises me
+                    self.pmatrix=self.pmatrix+temp
+                    del temp
         #
         # Remove buffer
         #
@@ -174,6 +216,7 @@ class HorizonMap:
             self.unmap=self.unmap.reshape(nra+nbuffer,ndec)[i1:i2,:]
             if self.return_b1map or self.norm=='one-beam': self.b1map=self.b1map.reshape(nra+nbuffer,ndec)[i1:i2,:]
             if self.return_b2map or self.norm=='two-beam': self.b2map=self.b2map.reshape(nra+nbuffer,ndec)[i1:i2,:]
+            # still need to remove buffer on pmatrix 
         #
         # Create pixel dictionary of the map with the buffer removed
         #
@@ -193,13 +236,16 @@ class HorizonMap:
         # pack everything into the dictionary.  Don't yet have P
         #
         mapdict={'px_dic':pixel_dict}
-        if self.norm=='one-beam': mapdict['map_sum']=self.unmap/self.b1map
-        if self.norm=='two-beam': mapdict['map_sum']=self.unmap/self.b2map
+        if self.norm=='one-beam': self.unmap=self.unmap/self.b1map
+        if self.norm=='two-beam': self.unmap=self.unmap/self.b2map
+        mapdict['map_sum']=self.unmap
         if self.return_b1map: mapdict['beam_weight_sum']=self.b1map
         if self.return_b2map: mapdict['beam_sq_weight_sum']=self.b2map
+        if self.return_pmatrix: mapdict['pmatrix']=self.pmatrix  # key needs to be made consistent with pspec?
         mapdict['n_vis']=self.dc.uv_1d.data_array.shape[0]  # Zhilei's def.  Does not include nsamples
         mapdict['freq']=self.dc.uv_1d.freq_array[0] # in Hz
         mapdict['polarization']=self.dc.ipol
         mapdict['bl_max']=np.sqrt(np.sum(self.dc.uv_1d.uvw_array**2, axis=1)).max()
         mapdict['radius2ctr']=0.  # distance of pixels to center.  Do we really need this?
+
         return mapdict

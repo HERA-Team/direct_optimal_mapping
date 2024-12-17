@@ -63,8 +63,8 @@ class HorizonMap:
 
         if wts != 'optimal':
             print('Only optimal weighting is implemented so far')
-        if (norm != 'one-beam') and (norm != 'two-beam'):
-            print('Only one-beam and two-beam normalizations are implemented so far')
+        if (norm != 'one-beam') and (norm != 'two-beam') and (norm != 'unnormalized'):
+            print('Only one-beam, two-beam, and unnormalized  normalizations are implemented so far')
         if return_pmatrix:
             print('Warning: P-matrix computation is very preliminary')
         if pmatrix_factor!=1: 
@@ -117,19 +117,21 @@ class HorizonMap:
         #
         self.dc.noise_calc()
         #
-        # check whether noise was calculated (noise array is 1D)
+        # check whether noise really was calculated (noise array is 1D)
         #
         if (np.sum(self.dc.uvn.data_array)==len(self.dc.uvn.data_array)):
             print('Unable to calculate noise:  sigma-n has been set to ones')
         #
         # set reference LST at middle of time span
+        # there are no autos in dc.uv_1d
         #
         ulsts=np.unique(self.dc.uv_1d.lst_array)
         ref_lst_index=int(len(ulsts)/2)
         self.ref_lst_deg=ulsts[ref_lst_index]*180./np.pi
         print('Reference LST index is ',ref_lst_index)
         print('Reference LST is ',self.ref_lst_deg,' degrees')
-        uvref=self.dc.uv_1d.select(lst_range=[ulsts[ref_lst_index],ulsts[ref_lst_index]],inplace=False)
+        uvref=copy.deepcopy(self.dc.uv_1d)
+        uvref.select(lst_range=[ulsts[ref_lst_index],ulsts[ref_lst_index]])
         dcref = data_conditioning.DataConditioning(uvref,0,self.dc.ipol)
         del uvref
         print('Reference data array shape ',dcref.uv_1d.data_array.shape)
@@ -160,16 +162,16 @@ class HorizonMap:
         #
         idx=np.where(np.vectorize(np.isnan)(self.dc.uv_1d.data_array)==True)[0]
         if len(idx) > 0:
-            print('Found ',len(idx),' nans in visibility array; setting weight to zero')
-            opt_map.inv_noise_mat[idx]=0.
+            print('Found ',len(idx),' nans in visibility array; setting to zero')
+            self.dc.uv_1d.data_array[idx]=0.
         idx=np.where(np.vectorize(np.isinf)(self.dc.uv_1d.data_array)==True)[0]
         if len(idx) > 0:
-            print('Found ',len(idx),' infs in visibility array; setting weight to zero')
-            opt_map.inv_noise_mat[idx]=0.
+            print('Found ',len(idx),' infs in visibility array; setting to zero')
+            self.dc.uv_1d.data_array[idx]=0.
         idx=np.where(self.dc.uv_1d.flag_array==True)[0]
         if len(idx) > 0:
-            print('Found ',len(idx),' flags in visibility array; setting weight to zero')
-            opt_map.inv_noise_mat[idx]=0.
+            print('Found ',len(idx),' flags in visibility array; setting to zero')
+            self.dc.uv_1d.data_array[idx]=0.
         #
         # compute maps (do we have sufficient precision?)
         #
@@ -187,8 +189,8 @@ class HorizonMap:
             idx_t=np.where(self.dc.uv_1d.time_array==time_stamp)[0]
             vis=self.dc.uv_1d.data_array[idx_t,0,0]
             wts=opt_map.inv_noise_mat[idx_t]
-            if (np.sum(self.dc.uv_1d.flag_array[idx_t])==vis.shape[0]):
-                print('All data are flagged for this time stamp - skip it')
+            if (np.sum(self.dc.uv_1d.flag_array[idx_t])==vis.shape[0]) or (np.sum(wts)==0.):
+                print('All data are flagged or all weights=0 for this time stamp - skip it')
             else:  
                 # there is good data, so compute time-stamp map and add to accum array
                 unmapt=np.real(np.matmul(np.conjugate(amatrix).T,np.multiply(wts,vis)))
@@ -233,7 +235,8 @@ class HorizonMap:
             print('ndec in dictionary is ',len(pixel_dict['dec_deg']))
             sys.exit()
         #
-        # pack everything into the dictionary.  Don't yet have P
+        # apply normalization and 
+        # pack everything into the dictionary.  Don't yet have final P
         #
         mapdict={'px_dic':pixel_dict}
         if self.norm=='one-beam': self.unmap=self.unmap/self.b1map

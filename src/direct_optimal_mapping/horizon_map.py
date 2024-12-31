@@ -61,6 +61,9 @@ class HorizonMap:
         self.return_pmatrix = return_pmatrix
         self.pmatrix_factor = pmatrix_factor
 
+        # test
+        print('TEST VERSION OF HORIZON_MAP')
+
         if wts != 'optimal':
             print('Only optimal weighting is implemented so far')
         if (norm != 'one-beam') and (norm != 'two-beam') and (norm != 'unnormalized'):
@@ -159,19 +162,24 @@ class HorizonMap:
                 opt_map.inv_noise_mat[idx]=0.
         #
         # check and sanitize the vis data 
+        # set the data to zero so it doesn't contribute to the map
+        # set the weights to zero for statistics accounting
         #
         idx=np.where(np.vectorize(np.isnan)(self.dc.uv_1d.data_array)==True)[0]
         if len(idx) > 0:
             print('Found ',len(idx),' nans in visibility array; setting to zero')
             self.dc.uv_1d.data_array[idx]=0.
+            opt_map.inv_noise_mat[idx]=0.
         idx=np.where(np.vectorize(np.isinf)(self.dc.uv_1d.data_array)==True)[0]
         if len(idx) > 0:
             print('Found ',len(idx),' infs in visibility array; setting to zero')
             self.dc.uv_1d.data_array[idx]=0.
+            opt_map.inv_noise_mat[idx]=0.
         idx=np.where(self.dc.uv_1d.flag_array==True)[0]
         if len(idx) > 0:
             print('Found ',len(idx),' flags in visibility array; setting to zero')
             self.dc.uv_1d.data_array[idx]=0.
+            opt_map.inv_noise_mat[idx]=0.
         #
         # compute maps (do we have sufficient precision?)
         #
@@ -179,13 +187,15 @@ class HorizonMap:
         if self.return_b1map or self.norm=='one-beam': self.b1map=np.zeros((nra+nbuffer,ndec))
         if self.return_b2map or self.norm=='two-beam': self.b2map=np.zeros((nra+nbuffer,ndec))
         if self.return_pmatrix: 
-            psize=(nra+nbuffer)*ndec*self.pmatrix_factor**2
-            self.pmatrix=np.zeros((psize,psize))
-            print('Warning: pmatrix is big.  Its size is ',psize,' X ',psize)
+            psize_sky=(nra+nbuffer)*ndec*self.pmatrix_factor**2   # area of sky contributing to map
+            psize_map=(nra+nbuffer)*ndec     # area of map (the facet)
+            self.pmatrix=np.zeros((nra+nbuffer,ndec,(nra+nbuffer)*self.pmatrix_factor,ndec*self.pmatrix_factor))
+            print('Warning: pmatrix is big.  Its size is ',psize_map,'pixels X ',psize_sky,' pixels including buffer')
+            print('After buffer removal pmatrix will be ',nra*ndec,' X ',nra*ndec*self.pmatrix_factor**2)
         amatrix=opt_map.phase_mat*opt_map.beam_mat
         for itime, time_stamp in enumerate(np.unique(self.dc.uv_1d.time_array)):
             idx_roll = itime - ref_lst_index
-            print('Computing map for timestamp ',itime, time_stamp,' - roll is ',idx_roll)
+            print('Computing for timestamp ',itime, time_stamp,' - roll is ',idx_roll)
             idx_t=np.where(self.dc.uv_1d.time_array==time_stamp)[0]
             vis=self.dc.uv_1d.data_array[idx_t,0,0]
             wts=opt_map.inv_noise_mat[idx_t]
@@ -203,14 +213,15 @@ class HorizonMap:
                     self.b2map=self.b2map+np.roll(b2mapt.reshape(nra+nbuffer,ndec),idx_roll,axis=0)
                 if self.return_pmatrix:  # this can probably be sped up with diagonal mult
                     pmt = np.real(np.matmul(np.conjugate(amatrix).T,np.matmul(np.diag(wts),amatrix)))
-                    temp = pmt.reshape((nra+nbuffer)*ndec,(nra+nbuffer)*self.pmatrix_factor*ndec*self.pmatrix_factor)
-                    # this is left-multiply by the rotation matrix transpose - just like the maps
-                    temp = np.roll(temp,idx_roll,axis=0)
-                    temp = np.roll(temp,idx_roll,axis=1)  # negative idx_roll here smears, which surprises me
+                    temp = pmt.reshape((nra+nbuffer),ndec,(nra+nbuffer)*self.pmatrix_factor,ndec*self.pmatrix_factor)
+                    print('Roll = + for axis 2; + for axis 0')
+                    temp = np.roll(temp,+idx_roll,axis=2)
+                    temp = np.roll(temp,+idx_roll,axis=0)  
                     self.pmatrix=self.pmatrix+temp
                     del temp
         #
         # Remove buffer
+        # reshaping is unecessary; remove that in this block
         #
         if self.buffer==True:
             i1=int(nbuffer/2)
@@ -219,6 +230,11 @@ class HorizonMap:
             if self.return_b1map or self.norm=='one-beam': self.b1map=self.b1map.reshape(nra+nbuffer,ndec)[i1:i2,:]
             if self.return_b2map or self.norm=='two-beam': self.b2map=self.b2map.reshape(nra+nbuffer,ndec)[i1:i2,:]
             # still need to remove buffer on pmatrix 
+            if self.return_pmatrix:
+                # this only works for pmatrix_factor=1 !!
+                self.pmatrix=self.pmatrix[i1:i2,:,i1:i2,:]
+                print('placeholder for removing buffer')
+                print('pmatrix shape is ',self.pmatrix.shape)
         #
         # Create pixel dictionary of the map with the buffer removed
         #

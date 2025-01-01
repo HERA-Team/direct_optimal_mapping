@@ -61,9 +61,6 @@ class HorizonMap:
         self.return_pmatrix = return_pmatrix
         self.pmatrix_factor = pmatrix_factor
 
-        # test
-        print('TEST VERSION OF HORIZON_MAP')
-
         if wts != 'optimal':
             print('Only optimal weighting is implemented so far')
         if (norm != 'one-beam') and (norm != 'two-beam') and (norm != 'unnormalized'):
@@ -214,14 +211,12 @@ class HorizonMap:
                 if self.return_pmatrix:  # this can probably be sped up with diagonal mult
                     pmt = np.real(np.matmul(np.conjugate(amatrix).T,np.matmul(np.diag(wts),amatrix)))
                     temp = pmt.reshape((nra+nbuffer),ndec,(nra+nbuffer)*self.pmatrix_factor,ndec*self.pmatrix_factor)
-                    print('Roll = + for axis 2; + for axis 0')
                     temp = np.roll(temp,+idx_roll,axis=2)
                     temp = np.roll(temp,+idx_roll,axis=0)  
                     self.pmatrix=self.pmatrix+temp
                     del temp
         #
         # Remove buffer
-        # reshaping is unecessary; remove that in this block
         #
         if self.buffer==True:
             i1=int(nbuffer/2)
@@ -233,7 +228,6 @@ class HorizonMap:
             if self.return_pmatrix:
                 # this only works for pmatrix_factor=1 !!
                 self.pmatrix=self.pmatrix[i1:i2,:,i1:i2,:]
-                print('placeholder for removing buffer')
                 print('pmatrix shape is ',self.pmatrix.shape)
         #
         # Create pixel dictionary of the map with the buffer removed
@@ -251,16 +245,32 @@ class HorizonMap:
             print('ndec in dictionary is ',len(pixel_dict['dec_deg']))
             sys.exit()
         #
-        # apply normalization and 
-        # pack everything into the dictionary.  Don't yet have final P
+        # apply normalization 
+        # The normalization for P is done row-by-row.
+        # which is not efficient.  But doing it all at once 
+        # usually exceeds memory.  This needs to be looked at.
+        #
+        if self.norm=='one-beam': 
+            self.unmap=self.unmap/self.b1map
+            for i in np.arange(nra*ndec):
+                if (i%10)==0: print('Normalizing P row ',i)
+                self.pmatrix.reshape((nra*ndec,nra*ndec*self.pmatrix_factor**2))[i,:]=self.pmatrix.reshape((nra*ndec,nra*ndec*self.pmatrix_factor**2))[i,:]/self.b1map.flatten()
+        if self.norm=='two-beam': 
+            self.unmap=self.unmap/self.b2map
+            print('placeholder for b2 P normalization')
+        #
+        # pack everything into the dictionary.  
+        # To be consistent with Zhilei's power spectrum pipeline,
+        # the map produced is called 'map_sum' and the P produced is called
+        # 'p_sum' in the map dictionary, even though they may be normalized 
+        # if that option has been chosen.
+        # This is confusing, and maybe we need to reorganize.
         #
         mapdict={'px_dic':pixel_dict}
-        if self.norm=='one-beam': self.unmap=self.unmap/self.b1map
-        if self.norm=='two-beam': self.unmap=self.unmap/self.b2map
         mapdict['map_sum']=self.unmap
         if self.return_b1map: mapdict['beam_weight_sum']=self.b1map
         if self.return_b2map: mapdict['beam_sq_weight_sum']=self.b2map
-        if self.return_pmatrix: mapdict['pmatrix']=self.pmatrix  # key needs to be made consistent with pspec?
+        if self.return_pmatrix: mapdict['p_sum']=self.pmatrix  
         mapdict['n_vis']=self.dc.uv_1d.data_array.shape[0]  # Zhilei's def.  Does not include nsamples
         mapdict['freq']=self.dc.uv_1d.freq_array[0] # in Hz
         mapdict['polarization']=self.dc.ipol

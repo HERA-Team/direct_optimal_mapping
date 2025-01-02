@@ -252,12 +252,14 @@ class HorizonMap:
         #
         if self.norm=='one-beam': 
             self.unmap=self.unmap/self.b1map
-            for i in np.arange(nra*ndec):
-                if (i%10)==0: print('Normalizing P row ',i)
-                self.pmatrix.reshape((nra*ndec,nra*ndec*self.pmatrix_factor**2))[i,:]=self.pmatrix.reshape((nra*ndec,nra*ndec*self.pmatrix_factor**2))[i,:]/self.b1map.flatten()
+            if self.return_pmatrix:
+                for i in np.arange(nra*ndec):
+                    self.pmatrix.reshape((nra*ndec,nra*ndec*self.pmatrix_factor**2))[i,:]=self.pmatrix.reshape((nra*ndec,nra*ndec*self.pmatrix_factor**2))[i,:]/self.b1map.flatten()
         if self.norm=='two-beam': 
             self.unmap=self.unmap/self.b2map
-            print('placeholder for b2 P normalization')
+            if self.return_pmatrix:
+                for i in np.arange(nra*ndec):
+                    self.pmatrix.reshape((nra*ndec,nra*ndec*self.pmatrix_factor**2))[i,:]=self.pmatrix.reshape((nra*ndec,nra*ndec*self.pmatrix_factor**2))[i,:]/self.b2map.flatten()
         #
         # pack everything into the dictionary.  
         # To be consistent with Zhilei's power spectrum pipeline,

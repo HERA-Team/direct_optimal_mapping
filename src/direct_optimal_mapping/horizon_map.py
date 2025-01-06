@@ -9,18 +9,10 @@ class HorizonMap:
     '''This class takes the optimal_mapping data conditioning object
        and computes the normalized map in horizon coordinates, using 
        a single-time-stamp matrix and rotations to speed up the calculation.
-       The maps returned in the map dictionary are the normalized sky map 
-       (unmap divided by the beam weights map), and the beam weight maps 
-       if requested.  There is also the option to return the P-matrix.
-       Warning:  P-matrix computation is very resource-intensive.
-       The pmatrix_factor is not yet implemented, but it should be -
-       pmatrix_factor=1 is not large enough for most applications.
     '''
 
     def __init__(self, dc, ra_ctr_deg, ra_rng_deg, dec_ctr_deg, dec_rng_deg,
-                 wts='optimal', norm='one-beam', epoch_map='J2000', uvw_sign=1,
-                 buffer=True, return_b1map=False, return_b2map=False,
-                 return_pmatrix=False, pmatrix_factor=1):
+                 wts='optimal', norm='one-beam', epoch_map='J2000'):
 
         '''
         Parameters
@@ -54,6 +46,38 @@ class HorizonMap:
         self.wts = wts
         self.norm = norm
         self.epoch_map = epoch_map
+
+        if wts != 'optimal':
+            print('Only optimal weighting is implemented so far')
+        if (norm != 'one-beam') and (norm != 'two-beam') and (norm != 'unnormalized'):
+            print('Only one-beam, two-beam, and unnormalized  normalizations are implemented so far')
+
+        return
+    
+    def calc_map(self, uvw_sign=1, buffer=True, return_b1map=False, 
+               return_b2map=False, return_pmatrix=False, pmatrix_factor=1):
+
+        '''Calculate a map, returning also the map of weight and the pmatrix
+        if requested.
+        The pmatrix_factor is not yet implemented, but it should be -
+        pmatrix_factor=1 is not large enough for most applications.
+
+        Parameters
+        ----------
+        uvw_sign  
+        buffer 
+        return_b1map 
+        return_b2map
+        return_pmatrix 
+        pmatrix_factor 
+
+        Return
+        ------
+
+        Attributes
+        ----------
+        '''
+
         self.uvw_sign = uvw_sign 
         self.buffer = buffer
         self.return_b1map = return_b1map
@@ -61,20 +85,12 @@ class HorizonMap:
         self.return_pmatrix = return_pmatrix
         self.pmatrix_factor = pmatrix_factor
 
-        if wts != 'optimal':
-            print('Only optimal weighting is implemented so far')
-        if (norm != 'one-beam') and (norm != 'two-beam') and (norm != 'unnormalized'):
-            print('Only one-beam, two-beam, and unnormalized  normalizations are implemented so far')
         if return_pmatrix:
             print('Warning: P-matrix computation is very preliminary')
         if pmatrix_factor!=1: 
             print('Only pmatrix_factor = 1 is implemented so far')
 
-        return
-    
-    def calc_map(self):
         #
-        # set up pixels
         # if buffer==True, a buffer allowing for the roll and edge 
         # effects is put in, then later removed
         #

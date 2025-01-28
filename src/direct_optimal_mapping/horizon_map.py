@@ -22,15 +22,10 @@ class HorizonMap:
         dec_ctr_deg:  Dec coordinate of the center of the map in degrees
         ra_rng_deg:  Width of map in coordinate degrees
         dec_rng_deg:  Height of map in degrees
-        wts:  weighting given to visibility points
-        norm:  normalization computed and applied to the map
+        wts:  weighting given to visibility points   'optimal'
+        norm:  normalization computed and applied to the map 'one-beam' 'two-beam'
+            'unnormalized'
         epoch_map:  epoch of the map coordinate system
-        uvw_sign:  same convention as optimal mapping object
-        buffer: add a buffer for weighting edge effects and numpy rolls, then trim it
-        return_b1map:  include beam weights map in map dictionary
-        return_b2map:  include beam squared weights map  in map dictionary
-        return_pmatrix: include the PSF matrix in map dictionary
-        pmatrix_factor: the linear scale factor by which the [P] sky dimension is larger than the map sky dimension
 
         Note: ra and dec ranges are specified in COORDINATE degrees
         Example: for a 10-degree ARC on the sky at dec=30deg, specify 10deg/0.8666
@@ -55,7 +50,8 @@ class HorizonMap:
         return
     
     def calc_map(self, uvw_sign=1, buffer=True, return_b1map=False, 
-               return_b2map=False, return_pmatrix=False, pmatrix_factor=1):
+               return_b2map=False, return_pmatrix=False, pmatrix_factor=1,
+               return_cmatrix='none'):
 
         '''Calculate a map, returning also the map of weight and the pmatrix
         if requested.
@@ -64,12 +60,13 @@ class HorizonMap:
 
         Parameters
         ----------
-        uvw_sign  
-        buffer 
-        return_b1map 
-        return_b2map
-        return_pmatrix 
-        pmatrix_factor 
+        uvw_sign:  same convention as optimal mapping object
+        buffer: add a buffer for weighting edge effects and numpy rolls, then trim it
+        return_b1map:  include beam weights map in map dictionary
+        return_b2map:  include beam squared weights map  in map dictionary
+        return_pmatrix: include PSF matrix in map dictionary  
+        pmatrix_factor: the linear scale factor by which the [P] sky dimension is larger than the map sky dimension
+        return_cmatrix:  include some or all of covariance matrix in map dictionary  'none' 'full'  'diag'
 
         Return
         ------
@@ -84,10 +81,11 @@ class HorizonMap:
         self.return_b2map = return_b2map
         self.return_pmatrix = return_pmatrix
         self.pmatrix_factor = pmatrix_factor
+        self.return_cmatrix = return_cmatrix
 
-        if return_pmatrix:
+        if self.return_pmatrix or self.return_cmatrix=='full':
             print('Warning: P-matrix computation is very preliminary')
-        if pmatrix_factor!=1: 
+        if self.pmatrix_factor!=1: 
             print('Only pmatrix_factor = 1 is implemented so far')
 
         #
@@ -199,7 +197,7 @@ class HorizonMap:
         self.unmap=np.zeros((nra+nbuffer,ndec))
         if self.return_b1map or self.norm=='one-beam': self.b1map=np.zeros((nra+nbuffer,ndec))
         if self.return_b2map or self.norm=='two-beam': self.b2map=np.zeros((nra+nbuffer,ndec))
-        if self.return_pmatrix: 
+        if self.return_pmatrix or self.return_cmatrix=='full': 
             psize_sky=(nra+nbuffer)*ndec*self.pmatrix_factor**2   # area of sky contributing to map
             psize_map=(nra+nbuffer)*ndec     # area of map (the facet)
             self.pmatrix=np.zeros((nra+nbuffer,ndec,(nra+nbuffer)*self.pmatrix_factor,ndec*self.pmatrix_factor))
@@ -294,5 +292,6 @@ class HorizonMap:
         mapdict['polarization']=self.dc.ipol
         mapdict['bl_max']=np.sqrt(np.sum(self.dc.uv_1d.uvw_array**2, axis=1)).max()
         mapdict['radius2ctr']=0.  # distance of pixels to center.  Do we really need this?
+        mapdict['ref_lst_deg']=self.ref_lst_deg
 
         return mapdict

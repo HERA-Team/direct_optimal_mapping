@@ -288,6 +288,7 @@ class HorizonMap:
         if self.return_b2map: mapdict['beam_sq_weight_sum']=self.b2map
         if self.return_pmatrix: mapdict['p_sum']=self.pmatrix  
         mapdict['n_vis']=self.dc.uv_1d.data_array.shape[0]  # Zhilei's def.  Does not include nsamples
+        mapdict['nsamples_total']=np.sum(self.dc.uv_1d.nsample_array*~self.dc.uv_1d.flag_array) 
         mapdict['freq']=self.dc.uv_1d.freq_array[0] # in Hz
         mapdict['polarization']=self.dc.ipol
         mapdict['bl_max']=np.sqrt(np.sum(self.dc.uv_1d.uvw_array**2, axis=1)).max()

@@ -21,6 +21,8 @@ class DataConditioning:
             select the frequency band
         ipol: integer [-5 - -8]
             select the linear polarization (-5:-8 (XX, YY, XY, YX))
+            XX is EE for H1C
+            XX is NN for H2C and beyond
         '''
         uv.unproject_phase()
         self.ifreq = ifreq

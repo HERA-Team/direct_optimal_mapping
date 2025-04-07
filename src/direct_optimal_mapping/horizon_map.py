@@ -66,7 +66,7 @@ class HorizonMap:
         return_b2map:  include beam squared weights map  in map dictionary
         return_pmatrix: include PSF matrix in map dictionary  
         pmatrix_factor: the linear scale factor by which the [P] sky dimension is larger than the map sky dimension
-        return_cmatrix:  include some or all of covariance matrix in map dictionary  'none' 'full'  'diag'
+        return_cmatrix:  include some or all of covariance matrix in map dictionary 'none' 'full'  'diag-slow'
 
         Return
         ------
@@ -274,6 +274,25 @@ class HorizonMap:
             if self.return_pmatrix:
                 for i in np.arange(nra*ndec):
                     self.pmatrix.reshape((nra*ndec,nra*ndec*self.pmatrix_factor**2))[i,:]=self.pmatrix.reshape((nra*ndec,nra*ndec*self.pmatrix_factor**2))[i,:]/self.b2map.flatten()
+        
+         if return_cmatrix == 'diag-slow':
+            if self.return_pmatrix == False:
+                print("return_pmatrix must be True")
+                break
+            self.pmatrix = self.pmatrix.reshape(len(self.pmatrix[0][0][0])**2, len(self.pmatrix[0][0][0])**2)
+            a_mat = self.b1map.flatten()
+            d_mat = (np.transpose(1/a_mat*np.eye(int(self.pmatrix.shape[0]), int(self.pmatrix.shape[0]))))
+            cmap = np.zeros(len(self.pmatrix))
+            for i in range(0, len(self.pmatrix)):
+                cmap[i] = (self.pmatrix[i, i] * d_mat[i, i])
+            total_diagonal = sqrt(np.sum(cmap))
+            print("sum of autos: %s" %total_diagonal)
+            del a_mat
+            del d_mat
+            cmap = cmap.reshape(int(sqrt(self.pmatrix.shape[0])), int(sqrt(self.pmatrix.shape[0])))
+            self.pmatrix = self.pmatrix.reshape(int(sqrt(self.pmatrix.shape[0])), int(sqrt(self.pmatrix.shape[0])),int(sqrt(self.pmatrix.shape[0])), int(sqrt(self.pmatrix.shape[0])))
+                  
+                   
         #
         # pack everything into the dictionary.  
         # To be consistent with Zhilei's power spectrum pipeline,
@@ -294,5 +313,5 @@ class HorizonMap:
         mapdict['bl_max']=np.sqrt(np.sum(self.dc.uv_1d.uvw_array**2, axis=1)).max()
         mapdict['radius2ctr']=0.  # distance of pixels to center.  Do we really need this?
         mapdict['ref_lst_deg']=self.ref_lst_deg
-
+        if self.return_cmatrix == 'diag-slow': mapdict['noise_map'] = cmap
         return mapdict

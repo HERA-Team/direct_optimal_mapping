@@ -66,7 +66,7 @@ class HorizonMap:
         return_b2map:  include beam squared weights map  in map dictionary
         return_pmatrix: include PSF matrix in map dictionary  
         pmatrix_factor: the linear scale factor by which the [P] sky dimension is larger than the map sky dimension
-        return_cmatrix:  include some or all of covariance matrix in map dictionary  'none' 'full'  'diag'
+        return_cmatrix:  include some or all of covariance matrix in map dictionary 'none' 'full'  'diag-slow'
 
         Return
         ------
@@ -197,7 +197,7 @@ class HorizonMap:
         self.unmap=np.zeros((nra+nbuffer,ndec))
         if self.return_b1map or self.norm=='one-beam': self.b1map=np.zeros((nra+nbuffer,ndec))
         if self.return_b2map or self.norm=='two-beam': self.b2map=np.zeros((nra+nbuffer,ndec))
-        if self.return_pmatrix or self.return_cmatrix=='full': 
+        if self.return_pmatrix or self.return_cmatrix != 'none': 
             psize_sky=(nra+nbuffer)*ndec*self.pmatrix_factor**2   # area of sky contributing to map
             psize_map=(nra+nbuffer)*ndec     # area of map (the facet)
             self.pmatrix=np.zeros((nra+nbuffer,ndec,(nra+nbuffer)*self.pmatrix_factor,ndec*self.pmatrix_factor))
@@ -222,7 +222,7 @@ class HorizonMap:
                 if self.return_b2map or self.norm=='two-beam':
                     b2mapt=np.real(np.matmul(np.conjugate(opt_map.beam_mat**2).T,np.multiply(wts,vis*0.+1.)))
                     self.b2map=self.b2map+np.roll(b2mapt.reshape(nra+nbuffer,ndec),idx_roll,axis=0)
-                if self.return_pmatrix:  # this can probably be sped up with diagonal mult
+                if self.return_pmatrix or self.return_cmatrix != 'none':  # this can probably be sped up with diagonal mult
                     pmt = np.real(np.matmul(np.conjugate(amatrix).T,np.matmul(np.diag(wts),amatrix)))
                     temp = pmt.reshape((nra+nbuffer),ndec,(nra+nbuffer)*self.pmatrix_factor,ndec*self.pmatrix_factor)
                     temp = np.roll(temp,+idx_roll,axis=2)
@@ -238,8 +238,8 @@ class HorizonMap:
             i2=int(nra+nbuffer/2)
             self.unmap=self.unmap.reshape(nra+nbuffer,ndec)[i1:i2,:]
             if self.return_b1map or self.norm=='one-beam': self.b1map=self.b1map.reshape(nra+nbuffer,ndec)[i1:i2,:]
-            if self.return_b2map or self.norm=='two-beam': self.b2map=self.b2map.reshape(nra+nbuffer,ndec)[i1:i2,:]
-            if self.return_pmatrix:
+            if self.return_b2map or self.norm=='two-beam': self.b2map=self.b2map.reshape(nra+nbuffer,ndec)[i1:i2,:
+            if self.return_pmatrix or self.return_cmatrix != 'none'
                 # this only works for pmatrix_factor=1 !!
                 self.pmatrix=self.pmatrix[i1:i2,:,i1:i2,:]
                 print('pmatrix shape is ',self.pmatrix.shape)
@@ -267,7 +267,7 @@ class HorizonMap:
         #
         if self.norm=='one-beam': 
             self.unmap=self.unmap/self.b1map
-            if self.return_pmatrix:
+            if self.return_pmatrix or self.return_cmatrix != 'none':
                 for i in np.arange(nra*ndec):
                     self.pmatrix.reshape((nra*ndec,nra*ndec*self.pmatrix_factor**2))[i,:]=self.pmatrix.reshape((nra*ndec,nra*ndec*self.pmatrix_factor**2))[i,:]/self.b1map.flatten()
         if self.norm=='two-beam': 
@@ -276,11 +276,22 @@ class HorizonMap:
                 for i in np.arange(nra*ndec):
                     self.pmatrix.reshape((nra*ndec,nra*ndec*self.pmatrix_factor**2))[i,:]=self.pmatrix.reshape((nra*ndec,nra*ndec*self.pmatrix_factor**2))[i,:]/self.b2map.flatten()
 
-        # put patrix into standard N_facet X N_PSFarea shape 
-        self.pmatrix=self.pmatrix.reshape(nra*ndec,nra*ndec*self.pmatrix_factor**2)
+        # put patrix into standard N_facet X N_PSFarea shape
+        if self.return_pmatrix or self.return_cmatrix != 'none:                       
+            self.pmatrix=self.pmatrix.reshape(nra*ndec,nra*ndec*self.pmatrix_factor**2)
         # test
         print('Final P shape is ',self.pmatrix.shape)
 
+        if return_cmatrix == 'diag-slow':
+            d_mat = 1/self.b1map.flatten()
+            cmap = np.zeros(self.pmatrix.shape[0])
+            for i in range(0, self.pmatrix.shape[0]):
+                cmap[i] = sqrt((self.pmatrix[i, i] * d_mat[i]))
+            total_diagonal = sqrt(np.sum(cmap))
+            print("sum of autos: %s" %total_diagonal)
+            del d_mat
+            cmap = cmap.reshape(int(sqrt(self.pmatrix.shape[0])), int(sqrt(self.pmatrix.shape[0])))
+                                                                                                           
         #
         # pack everything into the dictionary.  
         # To be consistent with Zhilei's power spectrum pipeline,
@@ -301,5 +312,5 @@ class HorizonMap:
         mapdict['bl_max']=np.sqrt(np.sum(self.dc.uv_1d.uvw_array**2, axis=1)).max()
         mapdict['radius2ctr']=0.  # distance of pixels to center.  Do we really need this?
         mapdict['ref_lst_deg']=self.ref_lst_deg
-
+        if self.return_cmatrix == 'diag-slow': mapdict['nsig'] = cmap
         return mapdict

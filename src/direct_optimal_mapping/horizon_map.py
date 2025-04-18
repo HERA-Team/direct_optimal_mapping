@@ -277,7 +277,8 @@ class HorizonMap:
                     self.pmatrix.reshape((nra*ndec,nra*ndec*self.pmatrix_factor**2))[i,:]=self.pmatrix.reshape((nra*ndec,nra*ndec*self.pmatrix_factor**2))[i,:]/self.b2map.flatten()
 
         # put patrix into standard N_facet X N_PSFarea shape 
-        self.pmatrix=self.pmatrix.reshape(nra*ndec,nra*ndec*self.pmatrix_factor**2)
+        if self.return_pmatrix or self.return_cmatrix != 'none':
+            self.pmatrix=self.pmatrix.reshape(nra*ndec,nra*ndec*self.pmatrix_factor**2)
         # test
         print('Final P shape is ',self.pmatrix.shape)
 

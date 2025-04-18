@@ -229,6 +229,7 @@ class HorizonMap:
                     temp = np.roll(temp,+idx_roll,axis=0)  
                     self.pmatrix=self.pmatrix+temp
                     del temp
+      
         #
         # Remove buffer
         #
@@ -237,12 +238,12 @@ class HorizonMap:
             i2=int(nra+nbuffer/2)
             self.unmap=self.unmap.reshape(nra+nbuffer,ndec)[i1:i2,:]
             if self.return_b1map or self.norm=='one-beam': self.b1map=self.b1map.reshape(nra+nbuffer,ndec)[i1:i2,:]
-            if self.return_b2map or self.norm=='two-beam': self.b2map=self.b2map.reshape(nra+nbuffer,ndec)[i1:i2,:]
-            # still need to remove buffer on pmatrix 
-            if self.return_pmatrix or self.return_cmatrix != 'none':
+            if self.return_b2map or self.norm=='two-beam': self.b2map=self.b2map.reshape(nra+nbuffer,ndec)[i1:i2,:
+            if self.return_pmatrix or self.return_cmatrix != 'none'
                 # this only works for pmatrix_factor=1 !!
                 self.pmatrix=self.pmatrix[i1:i2,:,i1:i2,:]
                 print('pmatrix shape is ',self.pmatrix.shape)
+
         #
         # Create pixel dictionary of the map with the buffer removed
         #
@@ -275,10 +276,11 @@ class HorizonMap:
                 for i in np.arange(nra*ndec):
                     self.pmatrix.reshape((nra*ndec,nra*ndec*self.pmatrix_factor**2))[i,:]=self.pmatrix.reshape((nra*ndec,nra*ndec*self.pmatrix_factor**2))[i,:]/self.b2map.flatten()
 
-        # put patrix into standard N_facet X N_PSFarea shape 
-         self.pmatrix=self.pmatrix.reshape(nra*ndec,nra*ndec*self.pmatrix_factor**2)
-         # test
-         print('Final P shape is ',self.pmatrix.shape)
+        # put patrix into standard N_facet X N_PSFarea shape
+        if self.return_pmatrix or self.return_cmatrix != 'none:                       
+            self.pmatrix=self.pmatrix.reshape(nra*ndec,nra*ndec*self.pmatrix_factor**2)
+        # test
+        print('Final P shape is ',self.pmatrix.shape)
 
         if return_cmatrix == 'diag-slow':
             d_mat = 1/self.b1map.flatten()
@@ -289,8 +291,7 @@ class HorizonMap:
             print("sum of autos: %s" %total_diagonal)
             del d_mat
             cmap = cmap.reshape(int(sqrt(self.pmatrix.shape[0])), int(sqrt(self.pmatrix.shape[0])))
-            
-                   
+                                                                                                           
         #
         # pack everything into the dictionary.  
         # To be consistent with Zhilei's power spectrum pipeline,

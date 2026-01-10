@@ -132,7 +132,7 @@ class OptMapping:
     
     def __init__(self, uv, px_dic_outer, px_dic_inner=None, epoch='J2000', feed=None,
                  beam_file=None,
-                 beam_folder='/nfs/esc/hera/zhileixu/git_beam/HERA-Beams/NicolasFagnoniBeams'):
+                 beam_folder='/orcd/data/jhewitt/001/HERA/git_beam/HERA-Beams/NicolasFagnoniBeams'):
         '''Init function for basic setup
          
         Parameters
@@ -162,12 +162,12 @@ class OptMapping:
         None        
         
         '''
-        self.hera_site = EarthLocation(lat=uv.telescope_location_lat_lon_alt_degrees[0]*u.deg,
-                                       lon=uv.telescope_location_lat_lon_alt_degrees[1]*u.deg,
-                                       height=uv.telescope_location_lat_lon_alt_degrees[2]*u.m)
+        self.hera_site = EarthLocation(lat=uv.telescope.location_lat_lon_alt_degrees[0]*u.deg,
+                                       lon=uv.telescope.location_lat_lon_alt_degrees[1]*u.deg,
+                                       height=uv.telescope.location_lat_lon_alt_degrees[2]*u.m)
         
         self.uv = uv
-        self.hera_dec = self.uv.telescope_location_lat_lon_alt[0]
+        self.hera_dec = self.uv.telescope.location_lat_lon_alt[0]
         self.lsts = np.unique(self.uv.lst_array)
         self.times = np.unique(uv.time_array)
         self.equinox = epoch

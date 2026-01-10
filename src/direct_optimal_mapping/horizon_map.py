@@ -22,7 +22,7 @@ class HorizonMap:
         dec_ctr_deg:  Dec coordinate of the center of the map in degrees
         ra_rng_deg:  Width of map in coordinate degrees
         dec_rng_deg:  Height of map in degrees
-        wts:  weighting given to visibility points   'optimal'
+        wts:  weighting given to visibility points   'optimal' 'uniform'
         norm:  normalization computed and applied to the map 'one-beam' 'two-beam'
             'unnormalized'
         epoch_map:  epoch of the map coordinate system
@@ -42,8 +42,8 @@ class HorizonMap:
         self.norm = norm
         self.epoch_map = epoch_map
 
-        if wts != 'optimal':
-            print('Only optimal weighting is implemented so far')
+        if (wts != 'optimal') and (wts != 'uniform'):
+            print('Only optimal and uniform weighting are implemented so far')
         if (norm != 'one-beam') and (norm != 'two-beam') and (norm != 'unnormalized'):
             print('Only one-beam, two-beam, and unnormalized  normalizations are implemented so far')
 
@@ -129,12 +129,13 @@ class HorizonMap:
         #
         # compute noise matrix (assumed diagonal)
         #
-        self.dc.noise_calc()
-        #
-        # check whether noise really was calculated (noise array is 1D)
-        #
-        if (np.sum(self.dc.uvn.data_array)==len(self.dc.uvn.data_array)):
-            print('Unable to calculate noise:  sigma-n has been set to ones')
+        if self.wts=='optimal':
+            self.dc.noise_calc()
+            #
+            # check whether noise really was calculated (noise array is 1D)
+            #
+            if (np.sum(self.dc.uvn.data_array)==len(self.dc.uvn.data_array)):
+                print('Unable to calculate noise:  sigma-n has been set to ones')
         #
         # set reference LST at middle of time span
         # there are no autos in dc.uv_1d
@@ -159,7 +160,9 @@ class HorizonMap:
         print('Phase matrix shape is ',opt_map.phase_mat.shape)
         opt_map.set_beam_mat(uvw_sign=1)
         print('Beam matrix shape is ',opt_map.beam_mat.shape)
+        #
         # compute weights
+        #
         if self.wts=='optimal':
             opt_map.set_inv_noise_mat(self.dc.uvn,matrix=False)
             print('inv noise shape ',opt_map.inv_noise_mat.shape)
@@ -171,6 +174,10 @@ class HorizonMap:
             if len(idx) > 0:
                 print('Found ',len(idx),' infs in nv noise array; setting to zero')
                 opt_map.inv_noise_mat[idx]=0.
+            weights=opt_map.inv_noise_mat
+        if self.wts=='uniform':
+            print('setting weights to 1')
+            weights=np.squeeze(self.dc.uv_1d.data_array)*0.+1.
         #
         # check and sanitize the vis data 
         # set the data to zero so it doesn't contribute to the map
@@ -180,17 +187,17 @@ class HorizonMap:
         if len(idx) > 0:
             print('Found ',len(idx),' nans in visibility array; setting to zero')
             self.dc.uv_1d.data_array[idx]=0.
-            opt_map.inv_noise_mat[idx]=0.
+            weights[idx]=0.
         idx=np.where(np.vectorize(np.isinf)(self.dc.uv_1d.data_array)==True)[0]
         if len(idx) > 0:
             print('Found ',len(idx),' infs in visibility array; setting to zero')
             self.dc.uv_1d.data_array[idx]=0.
-            opt_map.inv_noise_mat[idx]=0.
+            weights[idx]=0.
         idx=np.where(self.dc.uv_1d.flag_array==True)[0]
         if len(idx) > 0:
             print('Found ',len(idx),' flags in visibility array; setting to zero')
             self.dc.uv_1d.data_array[idx]=0.
-            opt_map.inv_noise_mat[idx]=0.
+            weights[idx]=0.
         #
         # compute maps (do we have sufficient precision?)
         #
@@ -209,7 +216,8 @@ class HorizonMap:
             print('Computing for timestamp ',itime, time_stamp,' - roll is ',idx_roll)
             idx_t=np.where(self.dc.uv_1d.time_array==time_stamp)[0]
             vis=self.dc.uv_1d.data_array[idx_t,0,0]
-            wts=opt_map.inv_noise_mat[idx_t]
+            wts=weights[idx_t]
+            print('vis and wts shape ',vis.shape,wts.shape)
             if (np.sum(self.dc.uv_1d.flag_array[idx_t])==vis.shape[0]) or (np.sum(wts)==0.):
                 print('All data are flagged or all weights=0 for this time stamp - skip it')
             else:  
@@ -279,8 +287,6 @@ class HorizonMap:
         # put patrix into standard N_facet X N_PSFarea shape 
         if self.return_pmatrix or self.return_cmatrix != 'none':
             self.pmatrix=self.pmatrix.reshape(nra*ndec,nra*ndec*self.pmatrix_factor**2)
-        # test
-        print('Final P shape is ',self.pmatrix.shape)
 
         #
         # pack everything into the dictionary.  

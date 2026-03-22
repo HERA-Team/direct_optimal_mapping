@@ -266,12 +266,28 @@ class OptMapping:
 
         pyuvbeam = UVBeam()
         pyuvbeam.read_beamfits(beam_file)
+        print('Just read the beam file')
         if pyuvbeam.beam_type == 'efield':
             if self.uv.polarization_array[0] in [1, 2, 3, 4]:
                 pyuvbeam.efield_to_pstokes()
             elif self.uv.polarization_array[0] in [-5, -6, -7, -8]:
                 pyuvbeam.efield_to_power()
-        pyuvbeam.select(polarizations=self.uv.polarization_array)
+                print('Converted E-field beam to power beam')
+        # we cannot use this because p-5 is NN in H6C data and p-5 is EE in pyuvbeam object
+        # derived from reading pyuvbeam repo
+        # pyuvbeam.select(polarizations=self.uv.polarization_array)
+        # so instead query nn/ee in pyuvbeam object
+        # this won't work if selecting more than one polarization
+        if self.uv.polarization_array[0]==-5:
+            pyuvbeam.select(polarizations=['nn'])
+        if self.uv.polarization_array[0]==-6:
+            pyuvbeam.select(polarizations=['ee'])
+        print('Data and beam selected polarization(s):')
+        print('uv.getpols is ',self.uv.get_pols())
+        print('using self.uv polarization array ',self.uv.polarization_array)
+        print('uvbeam feed array is ',pyuvbeam.feed_array)
+        print('uvbeam polarization array is ',pyuvbeam.polarization_array)
+        print('uvbeam feed angle is ',pyuvbeam.feed_angle)
         pyuvbeam.peak_normalize()
         pyuvbeam.interpolation_function = 'az_za_simple'
         pyuvbeam.freq_interp_kind = 'cubic'

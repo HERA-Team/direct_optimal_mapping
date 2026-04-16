@@ -192,7 +192,7 @@ class OptMapping:
             self.idx_inner_in_outer = np.arange(len(px_dic_inner['px_id'].flatten()))
         else:                                          
             self.idx_inner_in_outer = np.array([np.where(px_dic_outer['px_id'].flatten() == px_dic_inner['px_id'].flatten()[i])[0][0] 
-                                                for i in range(len(px_dic_inner['px_id'].flatten()))])
+                                                 for i in range(len(px_dic_inner['px_id'].flatten()))])
 
         self.ra = np.radians(px_dic_outer['ra_deg']).flatten()
         self.dec = np.radians(px_dic_outer['dec_deg']).flatten()
@@ -278,9 +278,11 @@ class OptMapping:
         # pyuvbeam.select(polarizations=self.uv.polarization_array)
         # so instead query nn/ee in pyuvbeam object
         # this won't work if selecting more than one polarization
-        if self.uv.polarization_array[0]==-5:
+        pols=self.uv.get_pols()
+        print('test: pols in data project are ',pols)
+        if pols[0]=='nn':
             pyuvbeam.select(polarizations=['nn'])
-        if self.uv.polarization_array[0]==-6:
+        if pols[0]=='ee':
             pyuvbeam.select(polarizations=['ee'])
         print('Data and beam selected polarization(s):')
         print('uv.getpols is ',self.uv.get_pols())
